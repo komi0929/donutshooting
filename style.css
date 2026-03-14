@@ -43,7 +43,7 @@ html, body {
   padding: 6px; -webkit-tap-highlight-color: transparent;
 }
 #rakkan:active { opacity: 1; transform: scale(0.9); }
-#rakkan.game-active { opacity: 0.9; filter: drop-shadow(0 0 6px rgba(180,60,40,0.5)); }
+#rakkan.game-active { opacity: 0; pointer-events: none; transform: scale(0.5); }
 
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   #rakkan {
@@ -293,8 +293,11 @@ body.game-active #rakkan {
    ═══════════════════════════════════ */
 .game-exit-btn {
   display: none;
-  position: fixed; top: 12px; left: 12px; z-index: 20;
-  width: 40px; height: 40px;
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: calc(12px + env(safe-area-inset-left, 0px));
+  z-index: 20;
+  width: 44px; height: 44px;
   border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
   background: rgba(10,10,20,0.6);
   color: rgba(255,255,255,0.7);
@@ -303,10 +306,14 @@ body.game-active #rakkan {
   -webkit-tap-highlight-color: transparent;
   backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
   transition: all 0.2s ease;
-  padding-top: env(safe-area-inset-top, 0px);
 }
 body.game-active .game-exit-btn { display: flex; align-items: center; justify-content: center; }
 .game-exit-btn:active { background: rgba(255,45,149,0.3); border-color: #ff2d95; color: #ff2d95; }
+
+/* Hide calligraphy UI during game */
+body.game-active #brush-change-btn { display: none !important; }
+body.game-active #washi-bg { opacity: 0; }
+body.game-active #idle-hint { display: none !important; }
 
 /* ═══════════════════════════════════
    Idle Hint — 白紙に戻す操作ヒント
