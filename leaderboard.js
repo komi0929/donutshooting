@@ -1,5 +1,5 @@
 /* ======================================
-   CYBER SURVIVOR — Leaderboard (Supabase)
+   ドーナツシューティング — Leaderboard (Supabase)
    ====================================== */
 const Leaderboard = (() => {
   'use strict';

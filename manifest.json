@@ -1,12 +1,12 @@
 {
-  "name": "薬院習字",
-  "short_name": "習字",
-  "description": "極限没入型の本格習字アプリ。書く、捨てる、遊ぶ。",
+  "name": "ドーナツシューティング",
+  "short_name": "ドーナツ",
+  "description": "ドーナツを守れ！可愛くて本格的なシューティングゲーム",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#faf8f5",
-  "theme_color": "#faf8f5",
+  "background_color": "#2a1a0e",
+  "theme_color": "#ff8fab",
   "icons": [
     {
       "src": "assets/icon-192.png",

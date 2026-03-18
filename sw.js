@@ -1,19 +1,17 @@
 /* ======================================
-   薬院習字 — Service Worker
+   ドーナツシューティング — Service Worker
    Offline-first caching
    ====================================== */
 
-const CACHE_NAME = 'yakuin-shuji-v5';
+const CACHE_NAME = 'donut-shooting-v1';
 const ASSETS = [
   '/',
   '/index.html',
   '/style.css',
-  '/brushes.js',
   '/app.js',
   '/game.js',
+  '/leaderboard.js',
   '/manifest.json',
-  '/assets/washi.png',
-  '/assets/rakkan.png',
   '/assets/icon-192.png',
   '/assets/icon-512.png',
   '/favicon.ico'
