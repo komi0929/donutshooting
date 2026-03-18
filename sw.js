@@ -3,7 +3,7 @@
    Offline-first caching
    ====================================== */
 
-const CACHE_NAME = 'donut-shooting-v1';
+const CACHE_NAME = 'donut-shooting-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -14,6 +14,12 @@ const ASSETS = [
   '/manifest.json',
   '/assets/icon-192.png',
   '/assets/icon-512.png',
+  '/assets/donut.png',
+  '/assets/player.png',
+  '/assets/enemy_ant.png',
+  '/assets/enemy_fly.png',
+  '/assets/enemy_mouse.png',
+  '/assets/enemy_wasp.png',
   '/favicon.ico'
 ];
 

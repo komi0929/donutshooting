@@ -36,9 +36,9 @@
     clear();
     document.body.classList.remove('game-active');
     if (titleScreen) titleScreen.classList.add('visible');
-    // Show high score
-    const hs = parseInt(localStorage.getItem('cyber_highscore') || '0', 10);
-    if (titleHigh) titleHigh.textContent = hs.toLocaleString();
+    // Show best time
+    const hs = parseFloat(localStorage.getItem('donut_hightime') || '0');
+    if (titleHigh) titleHigh.textContent = hs.toFixed(1);
   }
 
   function hideTitle() {

@@ -102,13 +102,14 @@ const Leaderboard = (() => {
       const cls = isMe ? 'lb-row lb-me' : 'lb-row';
       const rankCls = i < 3 ? `lb-rank lb-rank-${i + 1}` : 'lb-rank';
       const date = new Date(row.created_at);
-      const timeStr = `${date.getMonth() + 1}/${date.getDate()}`;
+      const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+      const timeStr = (row.score / 10).toFixed(1) + 's';
       return `<tr class="${cls}">
         <td class="${rankCls}">${rank}</td>
         <td class="lb-name">${escapeHtml(row.name)}</td>
-        <td class="lb-score">${row.score.toLocaleString()}</td>
-        <td class="lb-wave">W${row.wave}</td>
-        <td class="lb-date">${timeStr}</td>
+        <td class="lb-score">${timeStr}</td>
+        <td class="lb-wave">Lv${row.wave}</td>
+        <td class="lb-date">${dateStr}</td>
       </tr>`;
     }).join('');
   }
