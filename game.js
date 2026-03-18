@@ -422,6 +422,9 @@ function updatePlayer(dt){
   if(touching){const dx=tx-playerGroup.position.x,dz=ty-playerGroup.position.z,d=Math.hypot(dx,dz);
     if(d>0.2){const m=Math.min(CFG.playerSpeed*dt*60,d*0.15);playerGroup.position.x+=(dx/d)*m;playerGroup.position.z+=(dz/d)*m;playerGroup.rotation.y=Math.atan2(dx,dz);}}
   playerGroup.position.x=clp(playerGroup.position.x,-3.5,3.5);playerGroup.position.z=clp(playerGroup.position.z,-3.5,3.5);
+  // Honey pot collision — bear cannot walk through it
+  const potR=1.2;const distPot=Math.hypot(playerGroup.position.x,playerGroup.position.z);
+  if(distPot<potR&&distPot>0.01){const ang=Math.atan2(playerGroup.position.z,playerGroup.position.x);playerGroup.position.x=Math.cos(ang)*potR;playerGroup.position.z=Math.sin(ang)*potR;}
   const sy=surfaceY(playerGroup.position.x,playerGroup.position.z);
   playerGroup.position.y=sy+0.8+Math.sin(performance.now()/500)*0.1;
 }
