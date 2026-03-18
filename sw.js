@@ -3,7 +3,7 @@
    Offline-first caching
    ====================================== */
 
-const CACHE_NAME = 'donut-shooting-v2';
+const CACHE_NAME = 'donut-shooting-v3';
 const ASSETS = [
   '/',
   '/index.html',

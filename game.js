@@ -54,8 +54,9 @@ function drawPoly3D(ctx,x,y,sides,r,rot,baseColor,lightColor,shadowColor){
 function draw3DTorus(ctx,cx,cy,R,r,hpRatio,now){
   const segments=32,tubeSegs=12;
   const faces=[];
+  const rotOff=now/2000;// spin rotation
   for(let i=0;i<segments;i++){
-    const a1=(Math.PI*2/segments)*i,a2=(Math.PI*2/segments)*(i+1);
+    const a1=(Math.PI*2/segments)*i+rotOff,a2=(Math.PI*2/segments)*(i+1)+rotOff;
     for(let j=0;j<tubeSegs;j++){
       const b1=(Math.PI*2/tubeSegs)*j,b2=(Math.PI*2/tubeSegs)*(j+1);
       const cr1=R+r*Math.cos(b1),cr2=R+r*Math.cos(b2);
