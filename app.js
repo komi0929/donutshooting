@@ -37,7 +37,7 @@
     document.body.classList.remove('game-active');
     if (titleScreen) titleScreen.classList.add('visible');
     // Show best time
-    const hs = parseFloat(localStorage.getItem('donut_hightime') || '0');
+    const hs = parseFloat(localStorage.getItem('honey_hightime') || '0');
     if (titleHigh) titleHigh.textContent = hs.toFixed(1);
   }
 
