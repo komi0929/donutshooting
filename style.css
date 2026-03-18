@@ -118,3 +118,63 @@ body.game-active .game-exit-btn{display:flex;align-items:center;justify-content:
 #lb-name.shake{animation:inputShake .4s ease}
 @keyframes inputShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .lb-submit{padding:8px 16px!important;font-size:.75rem!important;white-space:nowrap;min-height:40px}
+
+/* ═══ Leaderboard scroll fix ═══ */
+.lb-list{max-height:calc(100dvh - 200px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:env(safe-area-inset-bottom,16px)}
+
+/* ═══ Mobile Responsive ═══ */
+@media (max-width:480px){
+  /* HUD */
+  .hud-top{gap:1rem}
+  .hud-label{font-size:.5rem}
+  .hud-value{font-size:1.1rem}
+  .hud-timer-wrap{width:140px;height:5px}
+  .hud-honey-wrap{top:calc(62px + env(safe-area-inset-top,0px))}
+  .hud-honey-bar{width:70px;height:4px}
+  .hud-honey-label{font-size:.7rem}
+  .hud-gauge{width:70px;height:8px}
+  .hud-blast-btn{font-size:.6rem;padding:6px 12px;min-height:36px}
+  /* Result */
+  .result-inner{padding:16px 12px}
+  .result-title{font-size:1.8rem;margin-bottom:1rem}
+  .result-score-value{font-size:2.5rem}
+  .result-stats{gap:.5rem}
+  .result-stat{padding:8px 10px;min-width:60px}
+  .result-stat-icon{font-size:1rem}
+  .result-stat-val{font-size:1.1rem}
+  .result-stat-lbl{font-size:.45rem}
+  .result-new{font-size:.85rem}
+  .result-best{font-size:.6rem;margin-bottom:.8rem}
+  .result-buttons{gap:.5rem}
+  .result-btn{font-size:.7rem;padding:.5rem 1.2rem;letter-spacing:.08em}
+  /* Name input */
+  #lb-name-input-area{margin:.6rem auto;padding:.6rem}
+  .lb-qualify{font-size:.6rem}
+  #lb-name{font-size:.8rem;padding:6px 10px;min-height:36px}
+  #lb-name::placeholder{font-size:.6rem}
+  .lb-submit{min-height:36px!important;font-size:.65rem!important}
+  /* Leaderboard */
+  .lb-inner{width:95%;padding:12px 0}
+  .lb-title{font-size:1rem}
+  .lb-close-btn{width:36px;height:36px;font-size:.85rem}
+  .lb-tab{font-size:.6rem;min-height:36px;border-radius:16px}
+  .lb-card{padding:8px 10px;gap:8px;border-radius:10px}
+  .lb-card-rank{font-size:.95rem;min-width:24px}
+  .lb-rank-1{font-size:1.1rem}
+  .lb-rank-2,.lb-rank-3{font-size:1rem}
+  .lb-card-name{font-size:.75rem}
+  .lb-card-date{font-size:.45rem}
+  .lb-card-pts{font-size:1rem}
+  .lb-card-sub{font-size:.4rem}
+  .lb-list{max-height:calc(100dvh - 180px)}
+}
+@media (max-width:360px){
+  .hud-value{font-size:.9rem}
+  .hud-timer-wrap{width:110px}
+  .result-title{font-size:1.5rem}
+  .result-score-value{font-size:2rem}
+  .result-btn{padding:.4rem 1rem;font-size:.6rem}
+  .result-stats{flex-wrap:wrap}
+  .lb-card-name{font-size:.65rem}
+  .lb-card-pts{font-size:.85rem}
+}
