@@ -6,26 +6,8 @@
 (() => {
   'use strict';
 
-  const canvas  = document.getElementById('canvas');
-  const ctx     = canvas.getContext('2d');
-  const overlay = document.getElementById('transition-overlay');
-
-  // ── Helpers ──────────────────────────
-  const _dpr = () => window.devicePixelRatio || 1;
-
-  function resize() {
-    const r = _dpr();
-    canvas.width  = innerWidth  * r;
-    canvas.height = innerHeight * r;
-    canvas.style.width  = innerWidth  + 'px';
-    canvas.style.height = innerHeight + 'px';
-    ctx.setTransform(r, 0, 0, r, 0, 0);
-  }
-
-  function clear() {
-    const r = _dpr();
-    ctx.clearRect(0, 0, canvas.width / r, canvas.height / r);
-  }
+  const container = document.getElementById('game-container');
+  const overlay   = document.getElementById('transition-overlay');
 
   // ── Title Screen ────────────────────
   const titleScreen = document.getElementById('title-screen');
@@ -33,12 +15,10 @@
   const titleHigh   = document.getElementById('title-high');
 
   function showTitle() {
-    clear();
     document.body.classList.remove('game-active');
     if (titleScreen) titleScreen.classList.add('visible');
-    // Show best time
-    const hs = parseFloat(localStorage.getItem('honey_hightime') || '0');
-    if (titleHigh) titleHigh.textContent = hs.toFixed(1);
+    const hs = parseInt(localStorage.getItem('honey_highscore') || '0');
+    if (titleHigh) titleHigh.textContent = hs;
   }
 
   function hideTitle() {
@@ -48,9 +28,8 @@
   function startGame() {
     hideTitle();
     document.body.classList.add('game-active');
-    clear();
     if (typeof GameEngine !== 'undefined') {
-      GameEngine.start(canvas, ctx);
+      GameEngine.start(container);
     }
   }
 
@@ -71,7 +50,7 @@
     replayBtn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (typeof GameEngine !== 'undefined') GameEngine.replay(canvas, ctx);
+      if (typeof GameEngine !== 'undefined') GameEngine.replay(container);
     }, { passive: false });
   }
 
@@ -83,7 +62,6 @@
       e.stopPropagation();
       if (typeof GameEngine !== 'undefined') GameEngine.stop();
       document.body.classList.remove('game-active');
-      clear();
       showTitle();
     }, { passive: false });
   }
@@ -96,18 +74,13 @@
       e.stopPropagation();
       if (typeof GameEngine !== 'undefined') GameEngine.stop();
       document.body.classList.remove('game-active');
-      clear();
       showTitle();
     }, { passive: false });
   }
 
   // ── Init ────────────────────────────
   function init() {
-    resize();
-    addEventListener('resize', resize);
-
     // Prevent default touch behaviors
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('touchmove', (e) => {
       if (e.touches.length > 0) e.preventDefault();

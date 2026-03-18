@@ -1,555 +1,1044 @@
-/* HONEY ISLAND DEFENSE — Protect the Honey from Bees! */
-const GameEngine=(()=>{'use strict';
+/* HONEY ISLAND DEFENSE — 3D Voxel Engine (Three.js) */
+const GameEngine = (() => {
+  'use strict';
 
-// === CONFIG ===
-const CFG={
-  islandR:70,honeyHP:100,playerR:14,playerSpeed:5.5,
-  shootInterval:200,windSpeed:10,windR:6,windLife:600,windPush:8,
-  spawnStart:2200,spawnMin:500,maxBees:20,
-  shakeDecay:0.9,starCount:0,
-};
+  // === CONFIG ===
+  const CFG = {
+    honeyHP: 100,
+    playerSpeed: 0.12,
+    shootInterval: 280,
+    windSpeed: 0.35,
+    windPush: 3.5,
+    spawnStart: 2200,
+    spawnMin: 400,
+    maxBees: 25,
+    donutInterval: 5000,   // spawn donut every 5s
+    donutPoints: 100,
+    beePoints: 10,
+    survivalPtsPerSec: 5,
+    blastCharge: 3,        // donuts needed for 360 blast
+    survivalGate: 30,      // 30s to qualify for ranking
+  };
 
-// Colors — ocean & island palette
-const C={
-  sky:'#87CEEB',ocean:'#1a6b8a',oceanDeep:'#0e4d6b',oceanLight:'#2d9ac2',
-  sand:'#f5deb3',sandDark:'#d4b896',sandLight:'#fff3d9',
-  grass:'#6ab04c',grassDark:'#4a8a2c',grassLight:'#8cd664',
-  honey:'#FFD700',honeyDark:'#DAA520',honeyLight:'#FFF8DC',
-  bee:'#FFD700',beeStripe:'#1a1a1a',beeWing:'rgba(200,230,255,0.35)',
-  wood:'#8B6914',woodDark:'#6b4f10',
-  white:'#fff',pink:'#ff8fab',red:'#ff4444',
-};
+  // SFX
+  const SFX = (() => {
+    let ac = null, m = null;
+    function e() { if (ac) return 1; try { ac = new (window.AudioContext || window.webkitAudioContext)(); m = ac.createGain(); m.gain.value = 0.2; m.connect(ac.destination); return 1; } catch (e) { return 0; } }
+    function g(v) { const gn = ac.createGain(); gn.gain.value = v; gn.connect(m); return gn; }
+    function puff() { if (!e()) return; const t = ac.currentTime, b = ac.createBuffer(1, ac.sampleRate * .08, ac.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.max(0, 1 - i / d.length); const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 800; const gn = g(.12); s.connect(f); f.connect(gn); gn.gain.exponentialRampToValueAtTime(.001, t + .1); s.start(t); }
+    function buzz() { if (!e()) return; const t = ac.currentTime, o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(120, t + .2); const gn = g(.06); gn.gain.exponentialRampToValueAtTime(.001, t + .25); o.connect(gn); o.start(t); o.stop(t + .25); }
+    function steal() { if (!e()) return; const t = ac.currentTime, o = ac.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(600, t); o.frequency.exponentialRampToValueAtTime(200, t + .3); const gn = g(.12); gn.gain.exponentialRampToValueAtTime(.001, t + .35); o.connect(gn); o.start(t); o.stop(t + .35); }
+    function pickup() { if (!e()) return; const t = ac.currentTime; [523, 659, 784].forEach((f, i) => { const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = f; const gn = g(.1); gn.gain.setValueAtTime(.001, t + i * .08); gn.gain.linearRampToValueAtTime(.1, t + i * .08 + .03); gn.gain.exponentialRampToValueAtTime(.001, t + i * .08 + .15); o.connect(gn); o.start(t + i * .08); o.stop(t + i * .08 + .2); }); }
+    function blast() { if (!e()) return; const t = ac.currentTime; const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(100, t); o.frequency.exponentialRampToValueAtTime(400, t + .15); o.frequency.exponentialRampToValueAtTime(80, t + .4); const gn = g(.15); gn.gain.exponentialRampToValueAtTime(.001, t + .5); o.connect(gn); o.start(t); o.stop(t + .5); const n = ac.createBuffer(1, ac.sampleRate * .3, ac.sampleRate); const nd = n.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * (1 - i / nd.length); const ns = ac.createBufferSource(); ns.buffer = n; const ng = g(.08); ns.connect(ng); ng.gain.exponentialRampToValueAtTime(.001, t + .35); ns.start(t); }
+    function gameOver() { if (!e()) return; const t = ac.currentTime; [330, 262, 196].forEach((f, i) => { const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = f; const gn = g(.15); gn.gain.setValueAtTime(.001, t + i * .3); gn.gain.linearRampToValueAtTime(.15, t + i * .3 + .05); gn.gain.exponentialRampToValueAtTime(.001, t + i * .3 + .5); o.connect(gn); o.start(t + i * .3); o.stop(t + i * .3 + .55); }); }
+    return { puff, buzz, steal, pickup, blast, gameOver };
+  })();
 
-// SFX
-const SFX=(()=>{let ac=null,m=null;
-function e(){if(ac)return 1;try{ac=new(window.AudioContext||window.webkitAudioContext)();m=ac.createGain();m.gain.value=0.2;m.connect(ac.destination);return 1}catch(e){return 0}}
-function g(v){const gn=ac.createGain();gn.gain.value=v;gn.connect(m);return gn}
-function puff(){if(!e())return;const t=ac.currentTime,b=ac.createBuffer(1,ac.sampleRate*.08,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.max(0,1-i/d.length);const s=ac.createBufferSource();s.buffer=b;const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=800;const gn=g(.12);s.connect(f);f.connect(gn);gn.gain.exponentialRampToValueAtTime(.001,t+.1);s.start(t)}
-function buzz(){if(!e())return;const t=ac.currentTime,o=ac.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(180,t);o.frequency.exponentialRampToValueAtTime(120,t+.2);const gn=g(.06);gn.gain.exponentialRampToValueAtTime(.001,t+.25);o.connect(gn);o.start(t);o.stop(t+.25)}
-function steal(){if(!e())return;const t=ac.currentTime,o=ac.createOscillator();o.type='triangle';o.frequency.setValueAtTime(600,t);o.frequency.exponentialRampToValueAtTime(200,t+.3);const gn=g(.12);gn.gain.exponentialRampToValueAtTime(.001,t+.35);o.connect(gn);o.start(t);o.stop(t+.35)}
-function gameOver(){if(!e())return;const t=ac.currentTime;[330,262].forEach((f,i)=>{const o=ac.createOscillator();o.type='sine';o.frequency.value=f;const gn=g(.15);gn.gain.setValueAtTime(.001,t+i*.3);gn.gain.linearRampToValueAtTime(.15,t+i*.3+.05);gn.gain.exponentialRampToValueAtTime(.001,t+i*.3+.5);o.connect(gn);o.start(t+i*.3);o.stop(t+i*.3+.55)})}
-return{puff,buzz,steal,gameOver}})();
+  // STATE
+  let active = false, af, lt = 0;
+  let scene, camera, renderer, clock;
+  let islandGroup, honeyMesh, playerGroup, oceanMesh;
+  let beeObjects = [], windObjects = [], donutObjects = [], particleObjects = [];
+  let clouds = [];
+  let player = null, touching = false, tx = 0, ty = 0;
+  let lastShot = 0, lastSpawn = 0, lastDonut = 0;
+  let honey = null, survTime = 0, diff = 1, score = 0;
+  let blastGauge = 0, blastReady = false;
+  let highScore = parseInt(localStorage.getItem('honey_highscore') || '0');
+  let raycaster, pointer;
+  let groundPlane;
+  let palmTree;
+  let containerEl;
 
-// STATE
-let active=false,_c,_x,W,H,af,lt=0;
-let player=null,tx,ty,touching=false;
-let winds=[],bees=[],particles=[],texts=[];
-let lastShot=0,lastSpawn=0;
-let shake={x:0,y:0,i:0},flash=0;
-let honey=null,survTime=0,diff=1;
-let waves=[]; // ocean waves
-let highScore=parseFloat(localStorage.getItem('honey_hightime')||'0');
-const isMob='ontouchstart'in window||navigator.maxTouchPoints>0;
+  // HELPERS
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const clp = (v, l, h) => v < l ? l : v > h ? h : v;
 
-// HELPERS
-const rand=(a,b)=>a+Math.random()*(b-a);
-const dst=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-const clp=(v,l,h)=>v<l?l:v>h?h:v;
-const lrp=(a,b,t)=>a+(b-a)*t;
-
-// === OCEAN BACKGROUND ===
-function initWaves(){
-  waves=[];
-  for(let i=0;i<8;i++){
-    waves.push({y:H*0.3+i*(H*0.1),amp:rand(3,8),freq:rand(0.005,0.015),speed:rand(0.0005,0.002),phase:rand(0,Math.PI*2),alpha:0.08+i*0.02});
+  // === MATERIALS ===
+  const MAT = {};
+  function initMaterials() {
+    MAT.grass = new THREE.MeshLambertMaterial({ color: 0x6ab04c });
+    MAT.grassDark = new THREE.MeshLambertMaterial({ color: 0x4a8a2c });
+    MAT.dirt = new THREE.MeshLambertMaterial({ color: 0x8B6914 });
+    MAT.dirtDark = new THREE.MeshLambertMaterial({ color: 0x6b4f10 });
+    MAT.sand = new THREE.MeshLambertMaterial({ color: 0xf5deb3 });
+    MAT.sandWet = new THREE.MeshLambertMaterial({ color: 0xd4b896 });
+    MAT.wood = new THREE.MeshLambertMaterial({ color: 0x6b4f10 });
+    MAT.leaf = new THREE.MeshLambertMaterial({ color: 0x4a8a2c, side: THREE.DoubleSide });
+    MAT.honeyPot = new THREE.MeshLambertMaterial({ color: 0x8B6914 });
+    MAT.honeyLiquid = new THREE.MeshLambertMaterial({ color: 0xFFD700, transparent: true, opacity: 0.85 });
+    MAT.honeyRim = new THREE.MeshLambertMaterial({ color: 0x9B7B2C });
+    MAT.bear = new THREE.MeshLambertMaterial({ color: 0x8B6914 });
+    MAT.bearBelly = new THREE.MeshLambertMaterial({ color: 0xD2B48C });
+    MAT.bearNose = new THREE.MeshLambertMaterial({ color: 0x222222 });
+    MAT.bearEye = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    MAT.bearEyeWhite = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    MAT.bee = new THREE.MeshLambertMaterial({ color: 0xFFD700 });
+    MAT.beeStripe = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+    MAT.beeWing = new THREE.MeshLambertMaterial({ color: 0xc8e6ff, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+    MAT.beeEye = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    MAT.cloud = new THREE.MeshLambertMaterial({ color: 0xdddddd });
+    MAT.ocean = new THREE.MeshLambertMaterial({ color: 0x1a8ab0, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+    MAT.donutDough = new THREE.MeshLambertMaterial({ color: 0xf5c77e });
+    MAT.donutIcing = new THREE.MeshLambertMaterial({ color: 0xff8fab });
+    MAT.donutIcingChoco = new THREE.MeshLambertMaterial({ color: 0x5c3317 });
+    MAT.donutIcingMint = new THREE.MeshLambertMaterial({ color: 0xa8e6cf });
+    MAT.flower1 = new THREE.MeshLambertMaterial({ color: 0xff8fab });
+    MAT.flower2 = new THREE.MeshLambertMaterial({ color: 0xffd700 });
+    MAT.flower3 = new THREE.MeshLambertMaterial({ color: 0xff6b6b });
+    MAT.windPuff = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+    MAT.blastRing = new THREE.MeshBasicMaterial({ color: 0x87ceeb, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
   }
-}
 
-function drawOcean(ctx,now){
-  // Sky gradient
-  const skyGr=ctx.createLinearGradient(0,0,0,H*0.4);
-  skyGr.addColorStop(0,'#bae6fd');skyGr.addColorStop(1,'#7dd3fc');
-  ctx.fillStyle=skyGr;ctx.fillRect(0,0,W,H*0.4);
-  // Ocean gradient
-  const oceanGr=ctx.createLinearGradient(0,H*0.3,0,H);
-  oceanGr.addColorStop(0,C.oceanLight);oceanGr.addColorStop(0.3,C.ocean);oceanGr.addColorStop(1,C.oceanDeep);
-  ctx.fillStyle=oceanGr;ctx.fillRect(0,H*0.3,W,H*0.7);
-  // Animated waves
-  for(const w of waves){
-    ctx.beginPath();ctx.moveTo(0,w.y);
-    for(let x=0;x<=W;x+=8){
-      const y=w.y+Math.sin(x*w.freq+now*w.speed+w.phase)*w.amp;
-      ctx.lineTo(x,y);
+  // === VOXEL ISLAND ===
+  function createIsland() {
+    islandGroup = new THREE.Group();
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+
+    // Layer definitions: y-level, radius, material, offset
+    const layers = [
+      { y: -2, r: 5.5, mat: MAT.sandWet, noise: 0.8 },
+      { y: -1, r: 5, mat: MAT.sand, noise: 0.6 },
+      { y: 0, r: 4.2, mat: MAT.dirt, noise: 0.5 },
+      { y: 1, r: 3.5, mat: MAT.grassDark, noise: 0.4 },
+      { y: 2, r: 2.8, mat: MAT.grass, noise: 0.3 },
+    ];
+
+    for (const layer of layers) {
+      for (let x = -6; x <= 6; x++) {
+        for (let z = -6; z <= 6; z++) {
+          const dist = Math.sqrt(x * x + z * z);
+          const noisyR = layer.r + Math.sin(x * 1.3 + z * 0.7) * layer.noise + Math.cos(x * 0.5 + z * 1.7) * layer.noise * 0.5;
+          if (dist <= noisyR) {
+            const block = new THREE.Mesh(boxGeo, layer.mat);
+            block.position.set(x, layer.y, z);
+            block.castShadow = true;
+            block.receiveShadow = true;
+            islandGroup.add(block);
+          }
+        }
+      }
     }
-    ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
-    ctx.fillStyle=`rgba(255,255,255,${w.alpha})`;ctx.fill();
-  }
-  // Sun reflection sparkles
-  for(let i=0;i<6;i++){
-    const sx=W*0.3+i*W*0.08+Math.sin(now/1500+i)*15;
-    const sy=H*0.35+Math.sin(now/800+i*1.5)*5;
-    const sparkle=Math.sin(now/400+i*2)*.5+.5;
-    ctx.globalAlpha=sparkle*0.4;
-    ctx.fillStyle='#fff';
-    ctx.beginPath();ctx.arc(sx,sy,1.5+sparkle,0,Math.PI*2);ctx.fill();
-  }
-  ctx.globalAlpha=1;
-  // Clouds
-  drawClouds(ctx,now);
-}
 
-function drawClouds(ctx,now){
-  ctx.globalAlpha=0.6;ctx.fillStyle='#fff';
-  const clouds=[{x:W*0.15,y:H*0.08,s:1},{x:W*0.55,y:H*0.12,s:0.7},{x:W*0.85,y:H*0.06,s:0.9}];
-  for(const cl of clouds){
-    const cx=((cl.x+now*0.01)%( W+100))-50;
-    ctx.beginPath();
-    ctx.arc(cx,cl.y,20*cl.s,0,Math.PI*2);
-    ctx.arc(cx+18*cl.s,cl.y-5*cl.s,15*cl.s,0,Math.PI*2);
-    ctx.arc(cx+30*cl.s,cl.y,18*cl.s,0,Math.PI*2);
-    ctx.arc(cx+12*cl.s,cl.y+3*cl.s,12*cl.s,0,Math.PI*2);
-    ctx.fill();
-  }
-  ctx.globalAlpha=1;
-}
-
-// === ISLAND ===
-function drawIsland(ctx,now){
-  const ix=W/2,iy=H/2;
-  const bob=Math.sin(now/2000)*3;// gentle bob on water
-  ctx.save();ctx.translate(0,bob);
-
-  // Water ring/splash around island
-  ctx.globalAlpha=0.15;ctx.strokeStyle='#fff';ctx.lineWidth=2;
-  ctx.beginPath();
-  for(let a=0;a<Math.PI*2;a+=0.05){
-    const r=CFG.islandR+12+Math.sin(a*6+now/500)*3;
-    const px=ix+Math.cos(a)*r,py=iy+Math.sin(a)*r*0.5;
-    a===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
-  }
-  ctx.closePath();ctx.stroke();ctx.globalAlpha=1;
-
-  // Island shadow on water
-  ctx.fillStyle='rgba(0,40,60,0.2)';
-  ctx.beginPath();ctx.ellipse(ix,iy+15,CFG.islandR+5,CFG.islandR*0.35,0,0,Math.PI*2);ctx.fill();
-
-  // Beach/sand base
-  ctx.fillStyle=C.sand;
-  ctx.beginPath();ctx.ellipse(ix,iy,CFG.islandR,CFG.islandR*0.5,0,0,Math.PI*2);ctx.fill();
-  // Sand texture rings
-  ctx.strokeStyle=C.sandDark;ctx.lineWidth=0.5;ctx.globalAlpha=0.3;
-  ctx.beginPath();ctx.ellipse(ix,iy,CFG.islandR*0.9,CFG.islandR*0.45,0,0,Math.PI*2);ctx.stroke();
-  ctx.beginPath();ctx.ellipse(ix,iy,CFG.islandR*0.7,CFG.islandR*0.35,0,0,Math.PI*2);ctx.stroke();
-  ctx.globalAlpha=1;
-
-  // Grass on top
-  ctx.fillStyle=C.grass;
-  ctx.beginPath();ctx.ellipse(ix,iy-5,CFG.islandR*0.65,CFG.islandR*0.32,0,0,Math.PI*2);ctx.fill();
-  // Grass highlights
-  ctx.fillStyle=C.grassLight;ctx.globalAlpha=0.4;
-  ctx.beginPath();ctx.ellipse(ix-10,iy-10,CFG.islandR*0.3,CFG.islandR*0.15,-.2,0,Math.PI*2);ctx.fill();
-  ctx.globalAlpha=1;
-
-  // Small palm tree
-  const px=ix+CFG.islandR*0.35,py=iy-CFG.islandR*0.15;
-  ctx.strokeStyle=C.wood;ctx.lineWidth=4;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(px,py);ctx.quadraticCurveTo(px+3,py-30,px-2,py-45);ctx.stroke();
-  // Palm leaves
-  const leafAngs=[-0.8,-0.3,0.2,0.7,1.2];
-  ctx.strokeStyle=C.grassDark;ctx.lineWidth=2;
-  for(const la of leafAngs){
-    const lx=px-2+Math.cos(la)*25,ly=py-45+Math.sin(la)*12+Math.sin(now/1000+la)*2;
-    ctx.beginPath();ctx.moveTo(px-2,py-45);ctx.quadraticCurveTo(px-2+Math.cos(la)*12,py-50+Math.sin(la)*5,lx,ly);ctx.stroke();
-  }
-
-  // Small flowers on grass
-  const flowers=[{x:ix-20,y:iy-8,c:'#ff8fab'},{x:ix-5,y:iy-15,c:'#ffd700'},{x:ix+15,y:iy-5,c:'#ff6b6b'}];
-  for(const fl of flowers){ctx.fillStyle=fl.c;ctx.beginPath();ctx.arc(fl.x,fl.y+bob,2.5,0,Math.PI*2);ctx.fill();}
-
-  ctx.restore();
-}
-
-// === HONEY POT ===
-function createHoney(){return{x:W/2,y:H/2,hp:CFG.honeyHP,maxHp:CFG.honeyHP};}
-
-function drawHoney(ctx,now){
-  if(!honey)return;
-  const hx=honey.x,hy=honey.y-8;
-  const bob=Math.sin(now/2000)*3;
-  const hpR=honey.hp/honey.maxHp;
-  ctx.save();ctx.translate(0,bob);
-
-  // Honey pot (cute jar shape)
-  const pw=22,ph=24;
-  // Pot body
-  ctx.fillStyle=C.wood;
-  ctx.beginPath();
-  ctx.moveTo(hx-pw,hy);ctx.lineTo(hx-pw+3,hy+ph);
-  ctx.quadraticCurveTo(hx,hy+ph+6,hx+pw-3,hy+ph);
-  ctx.lineTo(hx+pw,hy);ctx.closePath();ctx.fill();
-  // Pot highlight
-  ctx.fillStyle=C.woodDark;ctx.globalAlpha=0.3;
-  ctx.fillRect(hx-pw+5,hy+2,3,ph-2);ctx.globalAlpha=1;
-  // Honey inside (level based on HP)
-  const honeyH=ph*hpR;
-  const honeyTop=hy+ph-honeyH;
-  ctx.fillStyle=C.honey;
-  ctx.beginPath();
-  ctx.moveTo(hx-pw+3,hy+ph);ctx.quadraticCurveTo(hx,hy+ph+6,hx+pw-3,hy+ph);
-  ctx.lineTo(hx+pw-2,honeyTop);
-  ctx.quadraticCurveTo(hx,honeyTop-3,hx-pw+2,honeyTop);
-  ctx.closePath();ctx.fill();
-  // Honey shine
-  ctx.fillStyle=C.honeyLight;ctx.globalAlpha=0.4;
-  ctx.beginPath();ctx.ellipse(hx-5,honeyTop+(ph*hpR)/2,6,honeyH*0.3,0,0,Math.PI*2);ctx.fill();
-  ctx.globalAlpha=1;
-  // Pot rim
-  ctx.fillStyle='#9B7B2C';
-  ctx.fillRect(hx-pw-2,hy-3,pw*2+4,6);
-  ctx.fillStyle=C.woodDark;
-  ctx.fillRect(hx-pw-2,hy-3,pw*2+4,2);
-  // Pot label "HONEY"
-  ctx.fillStyle=C.sandLight;ctx.font='bold 7px "Outfit",sans-serif';ctx.textAlign='center';
-  ctx.fillText('HONEY',hx,hy+ph*0.55);
-
-  // Dripping honey effect
-  if(hpR<0.8){
-    const drip=Math.sin(now/500)*2;
-    ctx.fillStyle=C.honey;ctx.globalAlpha=0.7;
-    ctx.beginPath();ctx.ellipse(hx+pw-5,hy+ph+2+drip,2,3+drip,0,0,Math.PI*2);ctx.fill();
-    ctx.globalAlpha=1;
-  }
-
-  ctx.restore();
-
-  // HP bar below
-  const bw=50,bh=5,bx=hx-bw/2,by=hy+bob+ph+16;
-  ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fillRect(bx,by,bw,bh);
-  const hc=hpR>0.5?C.honey:hpR>0.25?'#ff8c00':C.red;
-  ctx.fillStyle=hc;ctx.fillRect(bx,by,bw*hpR,bh);
-  ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=0.5;ctx.strokeRect(bx,by,bw,bh);
-  // Percentage
-  ctx.fillStyle=C.white;ctx.font='bold 10px "Outfit",sans-serif';ctx.textAlign='center';
-  ctx.globalAlpha=0.7;ctx.fillText(`${Math.ceil(honey.hp)}%`,hx,by+bh+12);ctx.globalAlpha=1;
-}
-
-// === PLAYER (cute bear cub) ===
-function createPlayer(){return{x:W/2-40,y:H/2,trail:[],alive:true,angle:0};}
-
-function updatePlayer(dt){
-  if(!player.alive)return;
-  if(touching){const dx=tx-player.x,dy=ty-player.y,d=Math.hypot(dx,dy);
-    if(d>3){const m=Math.min(CFG.playerSpeed,d*.15);player.x+=(dx/d)*m;player.y+=(dy/d)*m;}}
-  player.x=clp(player.x,CFG.playerR,W-CFG.playerR);player.y=clp(player.y,CFG.playerR,H-CFG.playerR);
-  // Aim at nearest bee
-  let near=null,nd=Infinity;for(const b of bees){const d=dst(player,b);if(d<nd){nd=d;near=b;}}
-  if(near)player.angle=Math.atan2(near.y-player.y,near.x-player.x);
-  player.trail.unshift({x:player.x,y:player.y});if(player.trail.length>6)player.trail.pop();
-}
-
-function drawPlayer(ctx,now){
-  if(!player.alive)return;
-  const x=player.x,y=player.y,r=CFG.playerR;
-  const bob=Math.sin(now/2000)*3;
-  ctx.save();ctx.translate(x,y+bob);
-
-  // Body (round, brown — bear cub)
-  ctx.fillStyle='#8B6914';
-  ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
-  // Belly
-  ctx.fillStyle='#D2B48C';
-  ctx.beginPath();ctx.arc(0,r*0.15,r*0.6,0,Math.PI*2);ctx.fill();
-  // Ears
-  ctx.fillStyle='#8B6914';
-  ctx.beginPath();ctx.arc(-r*0.65,-r*0.65,r*0.35,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(r*0.65,-r*0.65,r*0.35,0,Math.PI*2);ctx.fill();
-  // Inner ears
-  ctx.fillStyle='#D2B48C';
-  ctx.beginPath();ctx.arc(-r*0.65,-r*0.65,r*0.2,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(r*0.65,-r*0.65,r*0.2,0,Math.PI*2);ctx.fill();
-  // Eyes
-  ctx.fillStyle='#222';
-  ctx.beginPath();ctx.arc(-r*0.25,-r*0.15,2,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(r*0.25,-r*0.15,2,0,Math.PI*2);ctx.fill();
-  // Eye shine
-  ctx.fillStyle='#fff';
-  ctx.beginPath();ctx.arc(-r*0.22,-r*0.18,0.8,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(r*0.22,-r*0.18,0.8,0,Math.PI*2);ctx.fill();
-  // Nose
-  ctx.fillStyle='#333';
-  ctx.beginPath();ctx.ellipse(0,-r*0.02,2.5,2,0,0,Math.PI*2);ctx.fill();
-  // Mouth
-  ctx.strokeStyle='#333';ctx.lineWidth=0.8;
-  ctx.beginPath();ctx.arc(-2,r*0.05,2.5,0,Math.PI);ctx.stroke();
-  ctx.beginPath();ctx.arc(2,r*0.05,2.5,0,Math.PI);ctx.stroke();
-  // Blush
-  ctx.fillStyle='rgba(255,139,171,0.3)';
-  ctx.beginPath();ctx.ellipse(-r*0.5,r*0.1,3,2,0,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.ellipse(r*0.5,r*0.1,3,2,0,0,Math.PI*2);ctx.fill();
-
-  ctx.restore();
-
-  // Direction indicator (fan/wind direction)
-  ctx.save();ctx.translate(x,y+bob);ctx.rotate(player.angle);
-  ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
-  ctx.beginPath();ctx.moveTo(r+4,0);ctx.lineTo(r+18,0);ctx.stroke();
-  ctx.setLineDash([]);
-  // Small fan icon
-  ctx.fillStyle='rgba(135,206,235,0.5)';
-  for(let i=0;i<3;i++){
-    const fa=i*Math.PI*2/3+now/500;
-    ctx.beginPath();ctx.ellipse(r+22,0,6,2.5,fa,0,Math.PI*2);ctx.fill();
-  }
-  ctx.restore();
-}
-
-// === WIND PUFFS (projectiles that push bees) ===
-function autoShoot(now){
-  if(!player.alive||now-lastShot<CFG.shootInterval)return;
-  if(bees.length===0)return;
-  lastShot=now;
-  let near=null,nd=Infinity;for(const b of bees){const d=dst(player,b);if(d<nd){nd=d;near=b;}}
-  if(!near)return;
-  const a=Math.atan2(near.y-player.y,near.x-player.x);
-  winds.push({x:player.x,y:player.y,vx:Math.cos(a)*CFG.windSpeed,vy:Math.sin(a)*CFG.windSpeed,born:now,r:CFG.windR,alpha:0.7});
-  SFX.puff();
-}
-
-function updateWinds(now){
-  for(let i=winds.length-1;i>=0;i--){
-    const w=winds[i];w.x+=w.vx;w.y+=w.vy;w.r+=0.15;w.alpha-=0.012;
-    if(w.x<-30||w.x>W+30||w.y<-30||w.y>H+30||now-w.born>CFG.windLife||w.alpha<=0)winds.splice(i,1);
-  }
-}
-
-function drawWinds(ctx,now){
-  for(const w of winds){
-    ctx.globalAlpha=w.alpha*0.6;
-    // Swirl effect
-    const gr=ctx.createRadialGradient(w.x,w.y,0,w.x,w.y,w.r);
-    gr.addColorStop(0,'rgba(255,255,255,0.6)');gr.addColorStop(0.5,'rgba(135,206,235,0.3)');gr.addColorStop(1,'rgba(135,206,235,0)');
-    ctx.fillStyle=gr;ctx.beginPath();ctx.arc(w.x,w.y,w.r,0,Math.PI*2);ctx.fill();
-    // Swirl lines
-    ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;
-    for(let s=0;s<3;s++){
-      const sa=now/300+s*2.1,sr=w.r*0.6;
-      ctx.beginPath();ctx.arc(w.x+Math.cos(sa)*sr*0.3,w.y+Math.sin(sa)*sr*0.3,sr*0.4,sa,sa+1.5);ctx.stroke();
+    // Top grass layer with some variation
+    for (let x = -3; x <= 3; x++) {
+      for (let z = -3; z <= 3; z++) {
+        const dist = Math.sqrt(x * x + z * z);
+        if (dist <= 2.5 + Math.sin(x + z) * 0.3) {
+          const top = new THREE.Mesh(boxGeo, MAT.grass);
+          top.position.set(x, 3, z);
+          top.castShadow = true;
+          top.receiveShadow = true;
+          islandGroup.add(top);
+        }
+      }
     }
-  }
-  ctx.globalAlpha=1;
-}
 
-// === BEES ===
-function spawnBee(){
-  const speedMult=1+diff*0.06;
-  const side=Math.floor(Math.random()*4);let x,y;
-  switch(side){case 0:x=rand(0,W);y=-30;break;case 1:x=W+30;y=rand(H*0.2,H);break;case 2:x=rand(0,W);y=H+30;break;case 3:x=-30;y=rand(H*0.2,H);break;}
-  const baseSpeed=rand(0.8,1.5)*speedMult;
-  bees.push({x,y,speed:baseSpeed,phase:rand(0,Math.PI*2),knockVx:0,knockVy:0,stunTime:0,dmg:rand(2,4)});
-}
-
-function updateBees(dt,now){
-  for(const b of bees){
-    // Apply knockback
-    if(b.stunTime>0){b.stunTime-=dt;b.x+=b.knockVx;b.y+=b.knockVy;b.knockVx*=0.92;b.knockVy*=0.92;continue;}
-    // Move toward honey with wobble
-    const dx=honey.x-b.x,dy=honey.y-b.y,d=Math.hypot(dx,dy);
-    if(d>1){
-      const wobX=Math.sin(now/400+b.phase)*1.5;
-      const wobY=Math.cos(now/350+b.phase)*0.8;
-      b.x+=(dx/d)*b.speed+wobX;
-      b.y+=(dy/d)*b.speed+wobY;
+    // Flowers on top
+    const flowerGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+    const flowerMats = [MAT.flower1, MAT.flower2, MAT.flower3];
+    const flowerPos = [[-1.5, 3.3, -1], [0.5, 3.3, -1.5], [1, 3.3, 0.5], [-0.5, 3.3, 1.5]];
+    for (let i = 0; i < flowerPos.length; i++) {
+      const f = new THREE.Mesh(flowerGeo, flowerMats[i % 3]);
+      f.position.set(...flowerPos[i]);
+      islandGroup.add(f);
     }
-    // Clamp to screen
-    b.x=clp(b.x,-50,W+50);b.y=clp(b.y,-50,H+50);
+
+    scene.add(islandGroup);
+    return islandGroup;
   }
-}
 
-function drawBees(ctx,now){
-  for(const b of bees){
-    const angle=Math.atan2(honey.y-b.y,honey.x-b.x);
-    const wobble=Math.sin(now/150+b.phase)*0.15;
-    const stunned=b.stunTime>0;
-    ctx.save();ctx.translate(b.x,b.y);ctx.rotate(angle+Math.PI/2+wobble);
-    if(stunned){ctx.globalAlpha=0.5+Math.sin(now/50)*0.3;}
+  // === PALM TREE ===
+  function createPalmTree() {
+    palmTree = new THREE.Group();
+    // Trunk — stacked boxes
+    const trunkGeo = new THREE.BoxGeometry(0.5, 1, 0.5);
+    for (let i = 0; i < 5; i++) {
+      const seg = new THREE.Mesh(trunkGeo, MAT.wood);
+      seg.position.set(0, i + 0.5, 0);
+      seg.rotation.y = i * 0.15;
+      seg.castShadow = true;
+      palmTree.add(seg);
+    }
+    // Leaves — flat boxes
+    const leafGeo = new THREE.BoxGeometry(2.5, 0.15, 0.8);
+    const leafAngles = [0, Math.PI / 3, Math.PI * 2 / 3, Math.PI, Math.PI * 4 / 3, Math.PI * 5 / 3];
+    for (const a of leafAngles) {
+      const leaf = new THREE.Mesh(leafGeo, MAT.leaf);
+      leaf.position.set(Math.cos(a) * 1.2, 5.2, Math.sin(a) * 1.2);
+      leaf.rotation.y = a;
+      leaf.rotation.z = 0.4;
+      leaf.castShadow = true;
+      palmTree.add(leaf);
+    }
+    palmTree.position.set(2, 2, -1);
+    scene.add(palmTree);
+  }
 
-    const r=8;
-    // Wings (flapping)
-    const wingFlap=Math.sin(now/40+b.phase)*0.4;
-    ctx.fillStyle=C.beeWing;
-    ctx.beginPath();ctx.ellipse(-r*0.9,-r*0.3,r*0.9,r*0.35,-0.2+wingFlap,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(r*0.9,-r*0.3,r*0.9,r*0.35,0.2-wingFlap,0,Math.PI*2);ctx.fill();
+  // === HONEY POT ===
+  function createHoneyPot() {
+    const group = new THREE.Group();
+    // Pot body — cylinder
+    const potGeo = new THREE.CylinderGeometry(0.7, 0.8, 1.5, 8);
+    const pot = new THREE.Mesh(potGeo, MAT.honeyPot);
+    pot.position.y = 0.75;
+    pot.castShadow = true;
+    group.add(pot);
+    // Rim
+    const rimGeo = new THREE.CylinderGeometry(0.85, 0.85, 0.2, 8);
+    const rim = new THREE.Mesh(rimGeo, MAT.honeyRim);
+    rim.position.y = 1.5;
+    group.add(rim);
+    // Honey liquid inside (visible from top)
+    const honeyGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.1, 8);
+    const honeyLiq = new THREE.Mesh(honeyGeo, MAT.honeyLiquid);
+    honeyLiq.position.y = 1.4;
+    honeyLiq.name = 'honeyLevel';
+    group.add(honeyLiq);
+    // Label — small box
+    const labelGeo = new THREE.BoxGeometry(0.6, 0.3, 0.05);
+    const labelMat = new THREE.MeshLambertMaterial({ color: 0xfff8dc });
+    const label = new THREE.Mesh(labelGeo, labelMat);
+    label.position.set(0, 0.8, 0.82);
+    group.add(label);
+
+    group.position.set(0, 3, 0);
+    honeyMesh = group;
+    scene.add(group);
+    return group;
+  }
+
+  // === PLAYER (Voxel Bear Cub) ===
+  function createPlayerModel() {
+    playerGroup = new THREE.Group();
+    const box = (w, h, d, mat) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+
     // Body
-    ctx.fillStyle=C.bee;
-    ctx.beginPath();ctx.ellipse(0,0,r*0.6,r,0,0,Math.PI*2);ctx.fill();
-    // Stripes
-    ctx.fillStyle=C.beeStripe;
-    for(let s=-1;s<=1;s++){
-      ctx.fillRect(-r*0.6,s*r*0.35-1.5,r*1.2,3);
-    }
+    const body = box(1.2, 1, 1, MAT.bear);
+    body.position.y = 0.5;
+    body.castShadow = true;
+    playerGroup.add(body);
+    // Belly
+    const belly = box(0.8, 0.6, 0.3, MAT.bearBelly);
+    belly.position.set(0, 0.45, 0.4);
+    playerGroup.add(belly);
     // Head
-    ctx.fillStyle=C.bee;
-    ctx.beginPath();ctx.arc(0,-r*0.9,r*0.4,0,Math.PI*2);ctx.fill();
+    const head = box(1, 0.8, 0.9, MAT.bear);
+    head.position.y = 1.4;
+    head.castShadow = true;
+    playerGroup.add(head);
+    // Ears
+    const earGeo = new THREE.BoxGeometry(0.35, 0.35, 0.3);
+    const earL = new THREE.Mesh(earGeo, MAT.bear);
+    earL.position.set(-0.45, 1.9, 0);
+    playerGroup.add(earL);
+    const earR = new THREE.Mesh(earGeo, MAT.bear);
+    earR.position.set(0.45, 1.9, 0);
+    playerGroup.add(earR);
+    // Inner ears
+    const iEarGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
+    const iEarL = new THREE.Mesh(iEarGeo, MAT.bearBelly);
+    iEarL.position.set(-0.45, 1.9, 0.15);
+    playerGroup.add(iEarL);
+    const iEarR = new THREE.Mesh(iEarGeo, MAT.bearBelly);
+    iEarR.position.set(0.45, 1.9, 0.15);
+    playerGroup.add(iEarR);
     // Eyes
-    ctx.fillStyle='#111';
-    ctx.beginPath();ctx.arc(-r*0.15,-r*0.95,1.5,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(r*0.15,-r*0.95,1.5,0,Math.PI*2);ctx.fill();
-    // Antennae
-    ctx.strokeStyle='#333';ctx.lineWidth=0.8;
-    ctx.beginPath();ctx.moveTo(-r*0.1,-r*1.2);ctx.quadraticCurveTo(-r*0.3,-r*1.6,-r*0.15,-r*1.5);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(r*0.1,-r*1.2);ctx.quadraticCurveTo(r*0.3,-r*1.6,r*0.15,-r*1.5);ctx.stroke();
+    const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.1);
+    const eyeL = new THREE.Mesh(eyeGeo, MAT.bearEye);
+    eyeL.position.set(-0.22, 1.5, 0.46);
+    playerGroup.add(eyeL);
+    const eyeR = new THREE.Mesh(eyeGeo, MAT.bearEye);
+    eyeR.position.set(0.22, 1.5, 0.46);
+    playerGroup.add(eyeR);
+    // Eye whites
+    const ewGeo = new THREE.BoxGeometry(0.08, 0.08, 0.05);
+    const ewL = new THREE.Mesh(ewGeo, MAT.bearEyeWhite);
+    ewL.position.set(-0.18, 1.53, 0.5);
+    playerGroup.add(ewL);
+    const ewR = new THREE.Mesh(ewGeo, MAT.bearEyeWhite);
+    ewR.position.set(0.26, 1.53, 0.5);
+    playerGroup.add(ewR);
+    // Nose
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.15), MAT.bearNose);
+    nose.position.set(0, 1.35, 0.5);
+    playerGroup.add(nose);
+    // Blush
+    const blushGeo = new THREE.BoxGeometry(0.2, 0.1, 0.05);
+    const blushMat = new THREE.MeshLambertMaterial({ color: 0xff8fab, transparent: true, opacity: 0.5 });
+    const blushL = new THREE.Mesh(blushGeo, blushMat);
+    blushL.position.set(-0.4, 1.35, 0.46);
+    playerGroup.add(blushL);
+    const blushR = new THREE.Mesh(blushGeo, blushMat);
+    blushR.position.set(0.4, 1.35, 0.46);
+    playerGroup.add(blushR);
+    // Legs
+    const legGeo = new THREE.BoxGeometry(0.35, 0.4, 0.35);
+    const legL = new THREE.Mesh(legGeo, MAT.bear);
+    legL.position.set(-0.3, -0.1, 0);
+    playerGroup.add(legL);
+    const legR = new THREE.Mesh(legGeo, MAT.bear);
+    legR.position.set(0.3, -0.1, 0);
+    playerGroup.add(legR);
+
+    playerGroup.position.set(-2, 3.5, 1);
+    scene.add(playerGroup);
+  }
+
+  // === BEE MODEL ===
+  function createBeeModel() {
+    const group = new THREE.Group();
+    const box = (w, h, d, mat) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+
+    // Body
+    const body = box(0.5, 0.5, 0.8, MAT.bee);
+    group.add(body);
+    // Stripes
+    const s1 = box(0.52, 0.15, 0.82, MAT.beeStripe);
+    s1.position.y = 0.1;
+    group.add(s1);
+    const s2 = box(0.52, 0.15, 0.82, MAT.beeStripe);
+    s2.position.y = -0.1;
+    group.add(s2);
+    // Head
+    const head = box(0.4, 0.4, 0.35, MAT.bee);
+    head.position.z = 0.55;
+    group.add(head);
+    // Eyes
+    const eye1 = box(0.1, 0.1, 0.05, MAT.beeEye);
+    eye1.position.set(-0.12, 0.08, 0.75);
+    group.add(eye1);
+    const eye2 = box(0.1, 0.1, 0.05, MAT.beeEye);
+    eye2.position.set(0.12, 0.08, 0.75);
+    group.add(eye2);
+    // Wings
+    const wingGeo = new THREE.BoxGeometry(0.6, 0.05, 0.4);
+    const wingL = new THREE.Mesh(wingGeo, MAT.beeWing);
+    wingL.position.set(-0.4, 0.3, 0.1);
+    wingL.rotation.z = 0.3;
+    wingL.name = 'wingL';
+    group.add(wingL);
+    const wingR = new THREE.Mesh(wingGeo, MAT.beeWing);
+    wingR.position.set(0.4, 0.3, 0.1);
+    wingR.rotation.z = -0.3;
+    wingR.name = 'wingR';
+    group.add(wingR);
     // Stinger
-    ctx.fillStyle='#333';
-    ctx.beginPath();ctx.moveTo(-2,r);ctx.lineTo(2,r);ctx.lineTo(0,r+5);ctx.closePath();ctx.fill();
+    const stinger = box(0.1, 0.1, 0.25, MAT.beeStripe);
+    stinger.position.z = -0.5;
+    group.add(stinger);
+    // Antennae
+    const antGeo = new THREE.BoxGeometry(0.05, 0.3, 0.05);
+    const antL = new THREE.Mesh(antGeo, MAT.beeStripe);
+    antL.position.set(-0.1, 0.35, 0.6);
+    antL.rotation.z = 0.3;
+    group.add(antL);
+    const antR = new THREE.Mesh(antGeo, MAT.beeStripe);
+    antR.position.set(0.1, 0.35, 0.6);
+    antR.rotation.z = -0.3;
+    group.add(antR);
 
-    // Dizzy stars when stunned
-    if(stunned){
-      ctx.fillStyle=C.honey;
-      for(let i=0;i<3;i++){
-        const sa=now/200+i*2.1,sr=r+5;
-        ctx.beginPath();ctx.arc(Math.cos(sa)*sr,Math.sin(sa)*sr-r*0.5,1.5,0,Math.PI*2);ctx.fill();
+    group.scale.set(0.8, 0.8, 0.8);
+    return group;
+  }
+
+  // === DONUT ===
+  function createDonutModel() {
+    const group = new THREE.Group();
+    // Torus-like shape from boxes
+    const icings = [MAT.donutIcing, MAT.donutIcingChoco, MAT.donutIcingMint];
+    const icingMat = icings[Math.floor(Math.random() * icings.length)];
+    // Ring of boxes
+    const segGeo = new THREE.BoxGeometry(0.3, 0.25, 0.3);
+    const topGeo = new THREE.BoxGeometry(0.32, 0.08, 0.32);
+    const ringR = 0.5;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const seg = new THREE.Mesh(segGeo, MAT.donutDough);
+      seg.position.set(Math.cos(a) * ringR, 0, Math.sin(a) * ringR);
+      seg.rotation.y = -a;
+      seg.castShadow = true;
+      group.add(seg);
+      // Icing on top
+      const top = new THREE.Mesh(topGeo, icingMat);
+      top.position.set(Math.cos(a) * ringR, 0.15, Math.sin(a) * ringR);
+      top.rotation.y = -a;
+      group.add(top);
+    }
+    group.scale.set(0.9, 0.9, 0.9);
+    return group;
+  }
+
+  // === CLOUDS ===
+  function createClouds() {
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    const cloudDefs = [
+      { x: -12, y: 12, z: -8, blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [0.5, 1, 0], [1.5, 1, 0], [1, 0, 1]] },
+      { x: 10, y: 14, z: -12, blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [0.5, 1, 0], [1.5, 1, 0], [2.5, 1, 0]] },
+      { x: -5, y: 11, z: 15, blocks: [[0, 0, 0], [1, 0, 0], [0.5, 1, 0], [0, 0, 1], [1, 0, 1]] },
+      { x: 15, y: 13, z: 5, blocks: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [1, 1, 0]] },
+    ];
+    for (const cd of cloudDefs) {
+      const cg = new THREE.Group();
+      for (const b of cd.blocks) {
+        const block = new THREE.Mesh(boxGeo, MAT.cloud);
+        block.position.set(b[0], b[1], b[2]);
+        cg.add(block);
+      }
+      cg.position.set(cd.x, cd.y, cd.z);
+      cg.userData = { baseX: cd.x, speed: rand(0.003, 0.008) };
+      scene.add(cg);
+      clouds.push(cg);
+    }
+  }
+
+  // === OCEAN ===
+  function createOcean() {
+    const geo = new THREE.PlaneGeometry(80, 80, 40, 40);
+    oceanMesh = new THREE.Mesh(geo, MAT.ocean);
+    oceanMesh.rotation.x = -Math.PI / 2;
+    oceanMesh.position.y = -2.5;
+    oceanMesh.receiveShadow = true;
+    scene.add(oceanMesh);
+  }
+
+  function animateOcean(time) {
+    if (!oceanMesh) return;
+    const pos = oceanMesh.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getY(i); // it's Y in geometry space = Z in world
+      const wave = Math.sin(x * 0.3 + time * 1.5) * 0.3 +
+        Math.sin(z * 0.4 + time * 1.2) * 0.2 +
+        Math.sin((x + z) * 0.2 + time * 0.8) * 0.15;
+      pos.setZ(i, wave);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // === SCENE SETUP ===
+  function initScene(container) {
+    containerEl = container;
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb);
+    scene.fog = new THREE.Fog(0x87ceeb, 30, 60);
+
+    // Camera
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(0, 14, 16);
+    camera.lookAt(0, 2, 0);
+
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+    renderer.domElement.style.position = 'fixed';
+    renderer.domElement.style.inset = '0';
+    renderer.domElement.style.zIndex = '1';
+    renderer.domElement.style.touchAction = 'none';
+
+    // Lights
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambient);
+    const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.0);
+    dirLight.position.set(8, 15, 10);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 40;
+    dirLight.shadow.camera.top = 12;
+    dirLight.shadow.camera.bottom = -12;
+    dirLight.shadow.camera.left = -12;
+    dirLight.shadow.camera.right = 12;
+    scene.add(dirLight);
+
+    // Hemisphere for sky color
+    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x1a6b8a, 0.3);
+    scene.add(hemi);
+
+    // Raycaster for input
+    raycaster = new THREE.Raycaster();
+    pointer = new THREE.Vector2();
+    groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -3.5);
+
+    clock = new THREE.Clock();
+    initMaterials();
+  }
+
+  // === INPUT ===
+  function getWorldPos(clientX, clientY) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const target = new THREE.Vector3();
+    raycaster.ray.intersectPlane(groundPlane, target);
+    return target;
+  }
+
+  function onPD(e) {
+    if (!active) return;
+    e.preventDefault();
+    touching = true;
+    const pos = getWorldPos(e.clientX, e.clientY);
+    if (pos) { tx = pos.x; ty = pos.z; }
+  }
+  function onPM(e) {
+    if (!active || !touching) return;
+    e.preventDefault();
+    const pos = getWorldPos(e.clientX, e.clientY);
+    if (pos) { tx = pos.x; ty = pos.z; }
+  }
+  function onPU() { touching = false; }
+
+  // === GAME LOGIC ===
+  function updatePlayer(dt) {
+    if (!player.alive || !playerGroup) return;
+    if (touching) {
+      const dx = tx - playerGroup.position.x;
+      const dz = ty - playerGroup.position.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d > 0.2) {
+        const m = Math.min(CFG.playerSpeed * dt * 60, d * 0.15);
+        playerGroup.position.x += (dx / d) * m;
+        playerGroup.position.z += (dz / d) * m;
+        // Face direction
+        playerGroup.rotation.y = Math.atan2(dx, dz);
+      }
+    }
+    // Clamp to island area
+    playerGroup.position.x = clp(playerGroup.position.x, -4, 4);
+    playerGroup.position.z = clp(playerGroup.position.z, -4, 4);
+    // Bobbing
+    playerGroup.position.y = 3.5 + Math.sin(performance.now() / 500) * 0.1;
+  }
+
+  function autoShoot(now) {
+    if (!player.alive || now - lastShot < CFG.shootInterval) return;
+    if (beeObjects.length === 0) return;
+    lastShot = now;
+
+    // Find nearest bee
+    let nearest = null, nd = Infinity;
+    for (const b of beeObjects) {
+      const dx = b.mesh.position.x - playerGroup.position.x;
+      const dz = b.mesh.position.z - playerGroup.position.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d < nd) { nd = d; nearest = b; }
+    }
+    if (!nearest) return;
+
+    const dx = nearest.mesh.position.x - playerGroup.position.x;
+    const dz = nearest.mesh.position.z - playerGroup.position.z;
+    const d = Math.sqrt(dx * dx + dz * dz) || 1;
+
+    // Create wind puff
+    const puffGeo = new THREE.SphereGeometry(0.2, 6, 6);
+    const puff = new THREE.Mesh(puffGeo, MAT.windPuff.clone());
+    puff.position.copy(playerGroup.position);
+    puff.position.y += 0.8;
+    scene.add(puff);
+
+    windObjects.push({
+      mesh: puff,
+      vx: (dx / d) * CFG.windSpeed,
+      vz: (dz / d) * CFG.windSpeed,
+      born: now,
+      life: 1,
+    });
+    SFX.puff();
+  }
+
+  function updateWinds(dt, now) {
+    for (let i = windObjects.length - 1; i >= 0; i--) {
+      const w = windObjects[i];
+      w.mesh.position.x += w.vx * dt * 60;
+      w.mesh.position.z += w.vz * dt * 60;
+      w.mesh.scale.multiplyScalar(1.02);
+      w.life -= 0.015 * dt * 60;
+      w.mesh.material.opacity = w.life * 0.5;
+
+      if (w.life <= 0 || now - w.born > 2000) {
+        scene.remove(w.mesh);
+        w.mesh.geometry.dispose();
+        w.mesh.material.dispose();
+        windObjects.splice(i, 1);
+      }
+    }
+  }
+
+  // === BEES ===
+  function spawnBee() {
+    const speedMult = 1 + diff * 0.05;
+    const angle = rand(0, Math.PI * 2);
+    const dist = rand(14, 18);
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist;
+    const y = rand(4, 7);
+
+    const mesh = createBeeModel();
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+
+    beeObjects.push({
+      mesh,
+      speed: rand(0.03, 0.06) * speedMult,
+      phase: rand(0, Math.PI * 2),
+      knockVx: 0, knockVz: 0,
+      stunTime: 0,
+      dmg: rand(2, 4),
+      targetY: rand(4, 6),
+    });
+  }
+
+  function updateBees(dt, now) {
+    for (const b of beeObjects) {
+      // Wing animation
+      const wingL = b.mesh.getObjectByName('wingL');
+      const wingR = b.mesh.getObjectByName('wingR');
+      if (wingL) wingL.rotation.z = 0.3 + Math.sin(now / 40 + b.phase) * 0.5;
+      if (wingR) wingR.rotation.z = -0.3 - Math.sin(now / 40 + b.phase) * 0.5;
+
+      if (b.stunTime > 0) {
+        b.stunTime -= dt * 1000;
+        b.mesh.position.x += b.knockVx * dt * 60;
+        b.mesh.position.z += b.knockVz * dt * 60;
+        b.knockVx *= 0.92;
+        b.knockVz *= 0.92;
+        // Spin when stunned
+        b.mesh.rotation.z = Math.sin(now / 100) * 0.5;
+        continue;
+      }
+
+      b.mesh.rotation.z = 0;
+      // Move toward honey pot (center)
+      const tx = 0, tz = 0;
+      const dx = tx - b.mesh.position.x;
+      const dz = tz - b.mesh.position.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d > 0.5) {
+        const wobX = Math.sin(now / 400 + b.phase) * 0.02;
+        const wobZ = Math.cos(now / 350 + b.phase) * 0.015;
+        b.mesh.position.x += (dx / d) * b.speed * dt * 60 + wobX;
+        b.mesh.position.z += (dz / d) * b.speed * dt * 60 + wobZ;
+        // Face direction
+        b.mesh.rotation.y = Math.atan2(dx, dz);
+      }
+      // Vertical wobble
+      b.mesh.position.y = b.targetY + Math.sin(now / 600 + b.phase) * 0.3;
+    }
+  }
+
+  // === DONUTS ===
+  function spawnDonut() {
+    const angle = rand(0, Math.PI * 2);
+    const dist = rand(2, 5);
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist;
+
+    const mesh = createDonutModel();
+    mesh.position.set(x, 4.5, z);
+    scene.add(mesh);
+
+    donutObjects.push({
+      mesh,
+      life: 10000, // 10 seconds to collect
+      born: performance.now(),
+    });
+  }
+
+  function updateDonuts(dt, now) {
+    for (let i = donutObjects.length - 1; i >= 0; i--) {
+      const d = donutObjects[i];
+      // Spin and bob
+      d.mesh.rotation.y += 0.02 * dt * 60;
+      d.mesh.position.y = 4.5 + Math.sin(now / 500 + i) * 0.3;
+
+      // Check player collection
+      if (playerGroup) {
+        const dx = d.mesh.position.x - playerGroup.position.x;
+        const dz = d.mesh.position.z - playerGroup.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 1.5) {
+          // Collected!
+          score += CFG.donutPoints;
+          blastGauge = Math.min(blastGauge + 1, CFG.blastCharge);
+          if (blastGauge >= CFG.blastCharge) blastReady = true;
+          updateHUD();
+          SFX.pickup();
+          scene.remove(d.mesh);
+          donutObjects.splice(i, 1);
+          continue;
+        }
+      }
+
+      // Timeout
+      if (now - d.born > d.life) {
+        scene.remove(d.mesh);
+        donutObjects.splice(i, 1);
+      }
+    }
+  }
+
+  // === 360 BLAST ===
+  function triggerBlast() {
+    if (!blastReady || !playerGroup) return;
+    blastReady = false;
+    blastGauge = 0;
+    updateHUD();
+    SFX.blast();
+
+    // Visual ring
+    const ringGeo = new THREE.RingGeometry(0.5, 1, 24);
+    const ring = new THREE.Mesh(ringGeo, MAT.blastRing.clone());
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.copy(playerGroup.position);
+    ring.position.y += 1;
+    scene.add(ring);
+
+    const blastData = { mesh: ring, scale: 1, life: 1 };
+    particleObjects.push(blastData);
+
+    // Push ALL bees away
+    for (const b of beeObjects) {
+      const dx = b.mesh.position.x - playerGroup.position.x;
+      const dz = b.mesh.position.z - playerGroup.position.z;
+      const d = Math.sqrt(dx * dx + dz * dz) || 1;
+      const force = Math.max(1, 8 / d);
+      b.knockVx = (dx / d) * force * 0.5;
+      b.knockVz = (dz / d) * force * 0.5;
+      b.stunTime = 800;
+      score += CFG.beePoints;
+    }
+    updateHUD();
+  }
+
+  function updateParticles(dt) {
+    for (let i = particleObjects.length - 1; i >= 0; i--) {
+      const p = particleObjects[i];
+      p.scale += 0.3 * dt * 60;
+      p.life -= 0.03 * dt * 60;
+      p.mesh.scale.set(p.scale, p.scale, p.scale);
+      p.mesh.material.opacity = p.life * 0.4;
+
+      if (p.life <= 0) {
+        scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mesh.material.dispose();
+        particleObjects.splice(i, 1);
+      }
+    }
+  }
+
+  // === COLLISIONS ===
+  function checkCollisions(now) {
+    // Winds push bees
+    for (let wi = windObjects.length - 1; wi >= 0; wi--) {
+      const w = windObjects[wi];
+      for (const b of beeObjects) {
+        const dx = b.mesh.position.x - w.mesh.position.x;
+        const dz = b.mesh.position.z - w.mesh.position.z;
+        const dy = b.mesh.position.y - w.mesh.position.y;
+        const dist = Math.sqrt(dx * dx + dz * dz + dy * dy);
+        if (dist < 1.5) {
+          const d = Math.sqrt(dx * dx + dz * dz) || 1;
+          b.knockVx = (dx / d) * CFG.windPush * 0.15;
+          b.knockVz = (dz / d) * CFG.windPush * 0.15;
+          b.stunTime = 500;
+          score += CFG.beePoints;
+          updateHUD();
+          SFX.buzz();
+          scene.remove(w.mesh);
+          w.mesh.geometry.dispose();
+          w.mesh.material.dispose();
+          windObjects.splice(wi, 1);
+          break;
+        }
       }
     }
 
-    ctx.restore();ctx.globalAlpha=1;
-  }
-}
+    // Bees reach honey
+    for (let i = beeObjects.length - 1; i >= 0; i--) {
+      const b = beeObjects[i];
+      if (b.stunTime > 0) continue;
+      const dx = b.mesh.position.x;
+      const dz = b.mesh.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < 1.8 && b.mesh.position.y < 5.5) {
+        honey.hp = Math.max(0, honey.hp - b.dmg);
+        updateHUD();
+        SFX.steal();
+        // Remove this bee (it ate some honey and leaves)
+        scene.remove(b.mesh);
+        beeObjects.splice(i, 1);
+        if (honey.hp <= 0) {
+          honey.hp = 0;
+          SFX.gameOver();
+          setTimeout(endGame, 1200);
+        }
+      }
+    }
 
-// === COLLISIONS ===
-function checkCollisions(now){
-  // Winds push bees
-  for(let wi=winds.length-1;wi>=0;wi--){
-    const w=winds[wi];
-    for(const b of bees){
-      if(dst(w,b)<w.r+10){
-        const dx=b.x-w.x,dy=b.y-w.y,d=Math.hypot(dx,dy)||1;
-        b.knockVx=(dx/d)*CFG.windPush;b.knockVy=(dy/d)*CFG.windPush;
-        b.stunTime=400;// stunned for 400ms
-        spawnPuffParticles(b.x,b.y);
-        winds.splice(wi,1);
-        SFX.buzz();
-        break;
+    // Remove bees that got knocked too far away
+    for (let i = beeObjects.length - 1; i >= 0; i--) {
+      const b = beeObjects[i];
+      const dx = b.mesh.position.x;
+      const dz = b.mesh.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > 25) {
+        scene.remove(b.mesh);
+        beeObjects.splice(i, 1);
       }
     }
   }
-  // Bees reach honey
-  for(let i=bees.length-1;i>=0;i--){
-    const b=bees[i];
-    if(b.stunTime>0)continue;
-    if(dst(b,honey)<CFG.islandR*0.4){
-      honey.hp=Math.max(0,honey.hp-b.dmg);
-      addText(honey.x+rand(-20,20),honey.y+rand(-20,20),`-${Math.round(b.dmg)}%`,'#ff4444');
-      shake.i=Math.max(shake.i,4);flash=0.15;
-      SFX.steal();
-      // Bee flies away satisfied (remove)
-      spawnHoneyDrops(b.x,b.y);
-      bees.splice(i,1);
-      if(honey.hp<=0){honey.hp=0;SFX.gameOver();setTimeout(endGame,1200);}
+
+  // === HUD ===
+  function updateHUD() {
+    const scoreEl = document.getElementById('hud-score');
+    const timeEl = document.getElementById('hud-time');
+    const gaugeEl = document.getElementById('hud-gauge-fill');
+    const blastBtn = document.getElementById('hud-blast-btn');
+
+    if (scoreEl) scoreEl.textContent = score;
+    if (timeEl) timeEl.textContent = survTime.toFixed(1) + 's';
+    if (gaugeEl) gaugeEl.style.width = (blastGauge / CFG.blastCharge * 100) + '%';
+    if (blastBtn) {
+      blastBtn.classList.toggle('ready', blastReady);
+      blastBtn.textContent = blastReady ? '💨 BLAST!' : `🍩 ${blastGauge}/${CFG.blastCharge}`;
     }
   }
-  // Remove bees that flew too far from screen
-  for(let i=bees.length-1;i>=0;i--){
-    const b=bees[i];
-    if(b.x<-100||b.x>W+100||b.y<-100||b.y>H+100)bees.splice(i,1);
+
+  // === DIFFICULTY ===
+  function updateDiff(dt, now) {
+    survTime += dt;
+    score += Math.round(CFG.survivalPtsPerSec * dt);
+    diff = 1 + Math.floor(survTime / 12);
+
+    const spawnInt = Math.max(CFG.spawnMin, CFG.spawnStart - diff * 180);
+    if (now - lastSpawn > spawnInt && beeObjects.length < CFG.maxBees) {
+      spawnBee();
+      lastSpawn = now;
+      if (diff >= 3 && Math.random() < 0.3) spawnBee();
+      if (diff >= 5 && Math.random() < 0.25) spawnBee();
+    }
+
+    // Spawn donuts
+    if (now - lastDonut > CFG.donutInterval) {
+      spawnDonut();
+      lastDonut = now;
+    }
+
+    updateHUD();
   }
-}
 
-// === PARTICLES ===
-function spawnPuffParticles(x,y){
-  for(let i=0;i<6;i++){
-    const a=rand(0,Math.PI*2),s=rand(1,3);
-    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:rand(2,5),color:'rgba(200,230,255,0.6)',alpha:0.7,life:1,decay:rand(.02,.04)});
+  // === CAMERA ===
+  function updateCamera(time) {
+    const camAngle = time * 0.05;
+    const camDist = 16;
+    const camHeight = 14;
+    camera.position.x = Math.sin(camAngle) * camDist;
+    camera.position.z = Math.cos(camAngle) * camDist;
+    camera.position.y = camHeight;
+    camera.lookAt(0, 2, 0);
   }
-}
-function spawnHoneyDrops(x,y){
-  for(let i=0;i<4;i++){
-    const a=rand(0,Math.PI*2),s=rand(1,3);
-    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s+1,r:rand(2,4),color:C.honey,alpha:1,life:1,decay:rand(.015,.03)});
+
+  // === GAME OVER ===
+  function endGame() {
+    active = false;
+    cancelAnimationFrame(af);
+    const isNew = score > highScore;
+    if (isNew) {
+      highScore = score;
+      localStorage.setItem('honey_highscore', String(highScore));
+    }
+
+    const ro = document.getElementById('game-result');
+    if (ro) {
+      const rs = document.getElementById('result-score');
+      const rh = document.getElementById('result-high');
+      const rn = document.getElementById('result-new');
+      const rk = document.getElementById('result-kills');
+      const rw = document.getElementById('result-wave');
+      const rt = document.getElementById('result-time');
+      if (rs) rs.textContent = score;
+      if (rh) rh.textContent = highScore;
+      if (rn) rn.style.display = isNew ? 'block' : 'none';
+      if (rk) rk.textContent = beeObjects.length;
+      if (rw) rw.textContent = Math.floor(diff);
+      if (rt) rt.textContent = survTime.toFixed(1) + 's';
+      ro.classList.add('visible');
+    }
+
+    const qualified = survTime >= CFG.survivalGate;
+    if (typeof Leaderboard !== 'undefined') {
+      Leaderboard.onGameOver(score, Math.floor(diff), 0, qualified);
+    }
   }
-}
-function updateParticles(){
-  for(let i=particles.length-1;i>=0;i--){
-    const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.05;p.vx*=.96;
-    p.life-=p.decay;p.alpha=p.life;
-    if(p.life<=0)particles.splice(i,1);
+
+  // === MAIN LOOP ===
+  function loop() {
+    if (!active) return;
+    af = requestAnimationFrame(loop);
+
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const now = performance.now();
+    const elapsed = clock.elapsedTime;
+
+    updatePlayer(dt);
+    autoShoot(now);
+    updateWinds(dt, now);
+    updateBees(dt, now);
+    updateDonuts(dt, now);
+    checkCollisions(now);
+    updateParticles(dt);
+    updateDiff(dt, now);
+    updateCamera(elapsed);
+    animateOcean(elapsed);
+
+    // Animate palm tree leaves
+    if (palmTree) {
+      palmTree.children.forEach((child, i) => {
+        if (i >= 5) { // leaves
+          child.rotation.z = 0.4 + Math.sin(elapsed * 1.5 + i) * 0.1;
+        }
+      });
+    }
+
+    // Animate clouds
+    for (const c of clouds) {
+      c.position.x = c.userData.baseX + Math.sin(elapsed * c.userData.speed * 20) * 8;
+    }
+
+    // Honey pot bob
+    if (honeyMesh) {
+      honeyMesh.position.y = 3 + Math.sin(elapsed * 1.2) * 0.08;
+    }
+
+    renderer.render(scene, camera);
   }
-}
-function drawParticles(ctx){
-  for(const p of particles){ctx.globalAlpha=p.alpha;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);ctx.fill();}
-  ctx.globalAlpha=1;
-}
 
-function addText(x,y,text,color){texts.push({x,y,text,color,alpha:1,vy:-1.5,life:1,scale:1.4});}
-function updateTexts(){for(let i=texts.length-1;i>=0;i--){const f=texts[i];f.y+=f.vy;f.life-=.02;f.alpha=f.life;if(f.scale>1)f.scale=lrp(f.scale,1,.12);if(f.life<=0)texts.splice(i,1);}}
-function drawTexts(ctx){for(const f of texts){ctx.globalAlpha=f.alpha;ctx.save();ctx.translate(f.x,f.y);const s=f.scale||1;ctx.scale(s,s);ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.lineWidth=3;ctx.font='bold 14px "Outfit",sans-serif';ctx.textAlign='center';ctx.lineJoin='round';ctx.strokeText(f.text,0,0);ctx.fillStyle=f.color;ctx.fillText(f.text,0,0);ctx.restore();}ctx.globalAlpha=1;}
+  // === START / STOP ===
+  function start(container) {
+    // Clean up any previous renderer
+    cleanup();
 
-// VFX
-function updateShake(){shake.x=(Math.random()-.5)*shake.i;shake.y=(Math.random()-.5)*shake.i;shake.i*=CFG.shakeDecay;if(shake.i<.3)shake.i=0;}
-function drawFlash(ctx){if(flash<=0)return;ctx.globalAlpha=flash;ctx.fillStyle='rgba(255,200,0,0.15)';ctx.fillRect(0,0,W,H);flash*=.88;if(flash<.01)flash=0;ctx.globalAlpha=1;}
+    initScene(container);
+    createOcean();
+    createIsland();
+    createPalmTree();
+    createHoneyPot();
+    createPlayerModel();
+    createClouds();
 
-// SAFE AREA
-let safeT=0,safeB=0;
-function detectSafe(){const p=document.createElement('div');p.style.cssText='position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);';document.body.appendChild(p);const cs=getComputedStyle(p);safeT=parseInt(cs.paddingTop)||0;safeB=parseInt(cs.paddingBottom)||0;document.body.removeChild(p);}
+    active = true;
+    lastShot = 0;
+    lastSpawn = 0;
+    lastDonut = 0;
+    lt = 0;
+    survTime = 0;
+    diff = 1;
+    score = 0;
+    blastGauge = 0;
+    blastReady = false;
+    honey = { hp: CFG.honeyHP, maxHp: CFG.honeyHP };
+    player = { alive: true };
+    tx = -2;
+    ty = 1;
+    touching = false;
 
-// HUD
-function drawHUD(ctx,now){
-  ctx.globalAlpha=1;const st=safeT+8;
-  // Survival time
-  const ts=survTime.toFixed(1)+'s';ctx.textAlign='center';
-  ctx.shadowColor=C.honey;ctx.shadowBlur=6;ctx.fillStyle=C.honey;
-  ctx.font='bold 26px "Outfit",sans-serif';ctx.fillText(ts,W/2,st+34);ctx.shadowBlur=0;
-  ctx.fillStyle=C.white;ctx.font='bold 10px "Outfit",sans-serif';ctx.globalAlpha=.6;
-  ctx.fillText('🍯 SURVIVAL TIME',W/2,st+14);ctx.globalAlpha=1;
-  // Bee count
-  ctx.textAlign='right';ctx.fillStyle=C.white;ctx.globalAlpha=.5;
-  ctx.font='9px "Outfit",sans-serif';ctx.fillText(`🐝 ${bees.length}`,W-16,st+20);
-  ctx.globalAlpha=1;
-}
+    // Events
+    renderer.domElement.addEventListener('pointerdown', onPD, { passive: false });
+    renderer.domElement.addEventListener('pointermove', onPM, { passive: false });
+    renderer.domElement.addEventListener('pointerup', onPU);
+    renderer.domElement.addEventListener('pointercancel', onPU);
 
-// DIFFICULTY
-function updateDiff(dt,now){
-  survTime+=dt/1e3;diff=1+Math.floor(survTime/12);
-  const spawnInt=Math.max(CFG.spawnMin,CFG.spawnStart-diff*180);
-  if(now-lastSpawn>spawnInt&&bees.length<CFG.maxBees){
-    spawnBee();lastSpawn=now;
-    if(diff>=3&&Math.random()<.3)spawnBee();
-    if(diff>=5&&Math.random()<.25)spawnBee();
+    // Blast button
+    const blastBtn = document.getElementById('hud-blast-btn');
+    if (blastBtn) {
+      blastBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); triggerBlast(); };
+    }
+
+    const ro = document.getElementById('game-result');
+    if (ro) ro.classList.remove('visible');
+    const na = document.getElementById('lb-name-input-area');
+    if (na) na.classList.remove('visible');
+
+    // Handle resize
+    window._honeyResizeHandler = () => {
+      if (!renderer || !camera) return;
+      const w = containerEl.clientWidth;
+      const h = containerEl.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', window._honeyResizeHandler);
+
+    updateHUD();
+    clock.start();
+    af = requestAnimationFrame(loop);
   }
-}
 
-// GAME OVER
-function endGame(){
-  active=false;cancelAnimationFrame(af);
-  const isNew=survTime>highScore;if(isNew){highScore=survTime;localStorage.setItem('honey_hightime',String(highScore));}
-  const ro=document.getElementById('game-result');if(ro){
-    const rs=document.getElementById('result-score'),rh=document.getElementById('result-high'),rn=document.getElementById('result-new'),rk=document.getElementById('result-kills'),rw=document.getElementById('result-wave');
-    if(rs)rs.textContent=survTime.toFixed(1)+'s';if(rh)rh.textContent=highScore.toFixed(1)+'s';if(rn)rn.style.display=isNew?'block':'none';if(rk)rk.textContent=bees.length;if(rw)rw.textContent=Math.floor(diff);
-    ro.classList.add('visible');}
-  if(typeof Leaderboard!=='undefined')Leaderboard.onGameOver(Math.round(survTime*10),Math.floor(diff),0);
-}
+  function cleanup() {
+    if (renderer) {
+      renderer.domElement.removeEventListener('pointerdown', onPD);
+      renderer.domElement.removeEventListener('pointermove', onPM);
+      renderer.domElement.removeEventListener('pointerup', onPU);
+      renderer.domElement.removeEventListener('pointercancel', onPU);
+      if (renderer.domElement.parentNode) {
+        renderer.domElement.parentNode.removeChild(renderer.domElement);
+      }
+      renderer.dispose();
+      renderer = null;
+    }
+    if (window._honeyResizeHandler) {
+      window.removeEventListener('resize', window._honeyResizeHandler);
+    }
+    // Clean scene objects
+    if (scene) {
+      while (scene.children.length > 0) {
+        const obj = scene.children[0];
+        scene.remove(obj);
+      }
+    }
+    beeObjects = [];
+    windObjects = [];
+    donutObjects = [];
+    particleObjects = [];
+    clouds = [];
+    scene = null;
+    camera = null;
+    islandGroup = null;
+    honeyMesh = null;
+    playerGroup = null;
+    oceanMesh = null;
+    palmTree = null;
+  }
 
-// MAIN LOOP
-function loop(ts){
-  if(!active)return;const now=performance.now();const rawDt=lt?ts-lt:16;lt=ts;
-  updatePlayer(rawDt);autoShoot(now);updateWinds(now);updateBees(rawDt,now);checkCollisions(now);
-  updateParticles();updateTexts();updateShake();updateDiff(rawDt,now);
-  _x.save();_x.translate(shake.x,shake.y);
-  drawOcean(_x,now);drawIsland(_x,now);drawHoney(_x,now);drawWinds(_x,now);drawBees(_x,now);drawPlayer(_x,now);drawParticles(_x);drawTexts(_x);drawFlash(_x);drawHUD(_x,now);
-  _x.restore();
-  af=requestAnimationFrame(loop);
-}
+  function stop() {
+    active = false;
+    cancelAnimationFrame(af);
+    cleanup();
+    const ro = document.getElementById('game-result');
+    if (ro) ro.classList.remove('visible');
+  }
 
-// INPUT
-function onPD(e){if(!active)return;e.preventDefault();touching=true;const r=_c.getBoundingClientRect();tx=e.clientX-r.left;ty=e.clientY-r.top;}
-function onPM(e){if(!active||!touching)return;e.preventDefault();const r=_c.getBoundingClientRect();tx=e.clientX-r.left;ty=e.clientY-r.top;}
-function onPU(){touching=false;}
+  function replay(container) {
+    stop();
+    start(container);
+  }
 
-// START/STOP
-function start(canvas,ctx){
-  _c=canvas;_x=ctx;const dpr=window.devicePixelRatio||1;W=canvas.width/dpr;H=canvas.height/dpr;
-  active=true;lastShot=0;lastSpawn=0;lt=0;
-  winds=[];bees=[];particles=[];texts=[];
-  shake={x:0,y:0,i:0};flash=0;survTime=0;diff=1;
-  honey=createHoney();player=createPlayer();tx=player.x;ty=player.y;touching=false;
-  detectSafe();initWaves();
-  _c.addEventListener('pointerdown',onPD,{passive:false});_c.addEventListener('pointermove',onPM,{passive:false});_c.addEventListener('pointerup',onPU);_c.addEventListener('pointercancel',onPU);
-  const ro=document.getElementById('game-result');if(ro)ro.classList.remove('visible');
-  const na=document.getElementById('lb-name-input-area');if(na)na.classList.remove('visible');
-  af=requestAnimationFrame(loop);
-}
-function stop(){active=false;cancelAnimationFrame(af);winds=[];bees=[];particles=[];texts=[];
-  if(_c){_c.removeEventListener('pointerdown',onPD);_c.removeEventListener('pointermove',onPM);_c.removeEventListener('pointerup',onPU);_c.removeEventListener('pointercancel',onPU);}
-  const ro=document.getElementById('game-result');if(ro)ro.classList.remove('visible');}
-function replay(c,x){stop();start(c,x);}
-return{start,stop,end:endGame,replay,get active(){return active},get score(){return survTime}};
+  return {
+    start,
+    stop,
+    end: endGame,
+    replay,
+    get active() { return active; },
+    get score() { return score; },
+    get survTime() { return survTime; },
+  };
 })();

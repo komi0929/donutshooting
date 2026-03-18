@@ -1,6 +1,6 @@
 /* ======================================
    Honey Island Defense — Style
-   Ocean & Island Theme
+   Ocean & Island 3D Theme
    ====================================== */
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -23,8 +23,8 @@
   --island-grass: #6ab04c;
   --bee-yellow: #FFD700;
   --wood-brown: #8B6914;
-  --bg: #0e4d6b;
-  --bg-light: #145a7a;
+  --bg: #87CEEB;
+  --bg-light: #7dd3fc;
 }
 
 html, body {
@@ -34,15 +34,14 @@ html, body {
   background: var(--bg); position: fixed; inset: 0;
 }
 
-#canvas {
+#game-container {
   position: fixed; inset: 0; z-index: 1;
   width: 100%; height: 100%;
-  touch-action: none; cursor: crosshair;
 }
 
 #transition-overlay {
   position: fixed; inset: 0; z-index: 10;
-  background: var(--bg); opacity: 0;
+  background: var(--ocean-deep); opacity: 0;
   pointer-events: none; transition: opacity 0.15s ease-in;
 }
 #transition-overlay.flash { opacity: 1; transition: opacity 0.05s ease-in; }
@@ -135,10 +134,95 @@ html, body {
 }
 
 /* ═══════════════════════════════════
+   In-Game HUD
+   ═══════════════════════════════════ */
+#game-hud {
+  display: none;
+  position: fixed; inset: 0; z-index: 15;
+  pointer-events: none;
+}
+body.game-active #game-hud { display: block; }
+
+.hud-top {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 50%; transform: translateX(-50%);
+  display: flex; gap: 2rem; align-items: flex-start;
+}
+.hud-score-box, .hud-time-box {
+  text-align: center;
+}
+.hud-label {
+  display: block;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6rem; font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  letter-spacing: 0.15em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.hud-value {
+  display: block;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.5rem; font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255,215,0,0.5), 0 2px 4px rgba(0,0,0,0.5);
+}
+.hud-score-box .hud-value { color: var(--honey-gold); }
+
+.hud-bottom {
+  position: absolute;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  left: 50%; transform: translateX(-50%);
+  display: flex; gap: 12px; align-items: center;
+  pointer-events: auto;
+}
+.hud-gauge {
+  width: 120px; height: 12px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(4px);
+}
+.hud-gauge-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--honey-amber), var(--honey-gold));
+  border-radius: 6px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(255,215,0,0.5);
+}
+.hud-blast-btn {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem; font-weight: 700;
+  padding: 10px 18px;
+  border: 2px solid rgba(255,215,0,0.3);
+  border-radius: 25px;
+  background: rgba(0,0,0,0.35);
+  color: rgba(255,215,0,0.5);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.3s ease;
+  min-height: 44px;
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+.hud-blast-btn.ready {
+  border-color: var(--honey-gold);
+  color: var(--honey-gold);
+  background: rgba(255,215,0,0.2);
+  box-shadow: 0 0 20px rgba(255,215,0,0.4);
+  animation: blastPulse 0.8s ease-in-out infinite;
+}
+@keyframes blastPulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(255,215,0,0.3); transform: scale(1); }
+  50% { box-shadow: 0 0 30px rgba(255,215,0,0.6); transform: scale(1.05); }
+}
+
+/* ═══════════════════════════════════
    Game Active State
    ═══════════════════════════════════ */
-body.game-active { background: var(--bg) !important; }
-body.game-active #canvas { background: var(--bg) !important; }
+body.game-active { background: var(--sky-blue) !important; }
 
 /* ═══════════════════════════════════
    Game Result Screen — Honey Theme
@@ -199,7 +283,15 @@ body.game-active #canvas { background: var(--bg) !important; }
 .donut-high {
   font-family: 'Outfit', sans-serif;
   font-size: 0.75rem; color: rgba(255,248,220,0.5);
-  letter-spacing: 0.1em; margin-bottom: 2rem;
+  letter-spacing: 0.1em; margin-bottom: 1rem;
+}
+
+.result-gate-msg {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8rem; font-weight: 600;
+  color: rgba(255,200,100,0.7);
+  margin-bottom: 1.5rem;
+  display: none;
 }
 
 .result-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }

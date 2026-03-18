@@ -1,5 +1,6 @@
 /* ======================================
    Honey Island Defense — Leaderboard (Supabase)
+   Score-based ranking with 30s survival gate
    ====================================== */
 const Leaderboard = (() => {
   'use strict';
@@ -8,7 +9,7 @@ const Leaderboard = (() => {
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdW5peGx2cHBtdWVkZHJkYnhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NjE0MzMsImV4cCI6MjA4OTAzNzQzM30.Q8m649yPOJzgHqofe89NJ9199fj0FNieST5uvaJbRIQ';
 
   let db = null;
-  let currentTab = 'alltime'; // alltime | today
+  let currentTab = 'alltime';
   let lastScore = 0;
 
   function init() {
@@ -45,7 +46,7 @@ const Leaderboard = (() => {
 
   async function isTop10(score) {
     init();
-    if (!db) return true; // fallback: allow entry
+    if (!db) return true;
     const { data, error } = await db
       .from('leaderboard')
       .select('score')
@@ -103,11 +104,10 @@ const Leaderboard = (() => {
       const rankCls = i < 3 ? `lb-rank lb-rank-${i + 1}` : 'lb-rank';
       const date = new Date(row.created_at);
       const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
-      const timeStr = (row.score / 10).toFixed(1) + 's';
       return `<tr class="${cls}">
         <td class="${rankCls}">${rank}</td>
         <td class="lb-name">${escapeHtml(row.name)}</td>
-        <td class="lb-score">${timeStr}</td>
+        <td class="lb-score">${row.score}</td>
         <td class="lb-wave">Lv${row.wave}</td>
         <td class="lb-date">${dateStr}</td>
       </tr>`;
@@ -120,14 +120,26 @@ const Leaderboard = (() => {
     return div.innerHTML;
   }
 
-  // Show name input if TOP 10
-  async function onGameOver(score, wave, hits) {
+  // Show name input if qualified (TOP 10 + survived 30s)
+  async function onGameOver(score, wave, hits, qualified) {
     lastScore = score;
     const nameInput = document.getElementById('lb-name-input-area');
+    const gateMsg = document.getElementById('result-gate-msg');
     if (!nameInput) return;
 
-    const qualified = await isTop10(score);
-    if (qualified && score > 0) {
+    if (!qualified) {
+      nameInput.classList.remove('visible');
+      if (gateMsg) {
+        gateMsg.textContent = '⏰ 30秒以上生存でランキング登録可能！';
+        gateMsg.style.display = 'block';
+      }
+      return;
+    }
+
+    if (gateMsg) gateMsg.style.display = 'none';
+
+    const isQualified = await isTop10(score);
+    if (isQualified && score > 0) {
       nameInput.classList.add('visible');
       const input = document.getElementById('lb-name');
       if (input) { input.value = ''; input.focus(); }
@@ -153,12 +165,10 @@ const Leaderboard = (() => {
 
     const scoreEl = document.getElementById('result-score');
     const waveEl = document.getElementById('result-wave');
-    const hitsEl = document.getElementById('result-kills');
     const score = parseInt(scoreEl?.textContent || '0', 10);
     const wave = parseInt(waveEl?.textContent || '1', 10);
-    const hits = parseInt(hitsEl?.textContent || '0', 10);
 
-    await submit(name, score, wave, hits);
+    await submit(name, score, wave, 0);
 
     btn.textContent = '登録完了！';
     const nameArea = document.getElementById('lb-name-input-area');
@@ -172,25 +182,19 @@ const Leaderboard = (() => {
 
   // === INIT LISTENERS ===
   function bindEvents() {
-    // Tab switching
     document.querySelectorAll('.lb-tab').forEach(tab => {
       tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
-    // Submit button
     const submitBtn = document.getElementById('lb-submit-btn');
     if (submitBtn) submitBtn.addEventListener('click', submitFromUI);
-    // Name input enter key
     const nameInput = document.getElementById('lb-name');
     if (nameInput) nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitFromUI(); });
-    // Close button
     const closeBtn = document.getElementById('lb-close');
     if (closeBtn) closeBtn.addEventListener('click', hidePanel);
-    // Ranking button on result screen
     const rankBtn = document.getElementById('game-ranking-btn');
     if (rankBtn) rankBtn.addEventListener('click', showPanel);
   }
 
-  // Auto-bind when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bindEvents);
   } else {

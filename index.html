@@ -7,9 +7,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#1a6b8a" />
     <title>Honey Island Defense</title>
-    <meta name="description" content="ハチミツを守れ！可愛い孤島ディフェンスゲーム" />
+    <meta name="description" content="ハチミツを守れ！可愛い3Dボクセル孤島ディフェンスゲーム" />
     <meta property="og:title" content="Honey Island Defense" />
-    <meta property="og:description" content="ハチミツを守れ！可愛い孤島ディフェンスゲーム" />
+    <meta property="og:description" content="ハチミツを守れ！可愛い3Dボクセル孤島ディフェンスゲーム" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://shuji.anshin.kids/" />
     <meta property="og:image" content="https://shuji.anshin.kids/assets/ogp.png" />
@@ -26,7 +26,8 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <canvas id="canvas"></canvas>
+    <!-- 3D game renders into this container -->
+    <div id="game-container"></div>
     <div id="transition-overlay"></div>
 
     <!-- ══════ Title Screen ══════ -->
@@ -35,8 +36,28 @@
         <div class="title-donut-emoji">🍯</div>
         <h1 class="title-logo">HONEY<br>ISLAND</h1>
         <p class="title-sub">ハチミツをまもれ！🐝</p>
-        <p class="title-highscore">BEST TIME: <span id="title-high">0</span>s</p>
+        <p class="title-highscore">BEST SCORE: <span id="title-high">0</span></p>
         <button id="title-start" class="title-start-btn">TAP TO START</button>
+      </div>
+    </div>
+
+    <!-- ══════ In-Game HUD ══════ -->
+    <div id="game-hud">
+      <div class="hud-top">
+        <div class="hud-score-box">
+          <span class="hud-label">SCORE</span>
+          <span class="hud-value" id="hud-score">0</span>
+        </div>
+        <div class="hud-time-box">
+          <span class="hud-label">🍯 TIME</span>
+          <span class="hud-value" id="hud-time">0.0s</span>
+        </div>
+      </div>
+      <div class="hud-bottom">
+        <div class="hud-gauge">
+          <div class="hud-gauge-fill" id="hud-gauge-fill"></div>
+        </div>
+        <button id="hud-blast-btn" class="hud-blast-btn">🍩 0/3</button>
       </div>
     </div>
 
@@ -46,12 +67,12 @@
         <p class="donut-title">GAME<br>OVER</p>
         <div class="donut-stats">
           <div class="donut-stat">
-            <span class="donut-stat-label">TIME</span>
+            <span class="donut-stat-label">SCORE</span>
             <span class="donut-stat-value" id="result-score">0</span>
           </div>
           <div class="donut-stat">
-            <span class="donut-stat-label">HITS</span>
-            <span class="donut-stat-value" id="result-kills">0</span>
+            <span class="donut-stat-label">TIME</span>
+            <span class="donut-stat-value" id="result-time">0s</span>
           </div>
           <div class="donut-stat">
             <span class="donut-stat-label">LEVEL</span>
@@ -59,7 +80,8 @@
           </div>
         </div>
         <p class="donut-new" id="result-new">🍯 NEW RECORD 🍯</p>
-        <p class="donut-high">BEST TIME: <span id="result-high">0</span></p>
+        <p class="donut-high">BEST SCORE: <span id="result-high">0</span></p>
+        <p class="result-gate-msg" id="result-gate-msg"></p>
         <!-- Name Input for TOP 10 -->
         <div id="lb-name-input-area">
           <p class="lb-qualify">🎉 TOP 10 入り！名前を登録</p>
@@ -97,10 +119,11 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="game.js?v=3"></script>
-    <script src="leaderboard.js?v=3"></script>
-    <script src="app.js?v=3"></script>
+    <script src="game.js?v=4"></script>
+    <script src="leaderboard.js?v=4"></script>
+    <script src="app.js?v=4"></script>
     <script>
       // Force clear old service worker caches
       if ('serviceWorker' in navigator) {
