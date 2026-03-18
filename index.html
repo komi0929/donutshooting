@@ -7,35 +7,24 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#1a6b8a" />
     <title>Honey Island Defense</title>
-    <meta name="description" content="ハチミツを守れ！可愛い3Dボクセル孤島ディフェンスゲーム" />
-    <meta property="og:title" content="Honey Island Defense" />
-    <meta property="og:description" content="ハチミツを守れ！可愛い3Dボクセル孤島ディフェンスゲーム" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://shuji.anshin.kids/" />
-    <meta property="og:image" content="https://shuji.anshin.kids/assets/ogp.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://shuji.anshin.kids/assets/ogp.png" />
+    <meta name="description" content="ハチミツを守れ！30秒3Dボクセル孤島ディフェンスゲーム" />
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
     <link rel="apple-touch-icon" href="assets/icon-192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- 3D game renders into this container -->
     <div id="game-container"></div>
-    <div id="transition-overlay"></div>
 
     <!-- ══════ Title Screen ══════ -->
     <div id="title-screen">
       <div class="title-inner">
         <div class="title-donut-emoji">🍯</div>
         <h1 class="title-logo">HONEY<br>ISLAND</h1>
-        <p class="title-sub">ハチミツをまもれ！🐝</p>
+        <p class="title-sub">30秒でどれだけ守れる？🐝</p>
         <p class="title-highscore">BEST SCORE: <span id="title-high">0</span></p>
         <button id="title-start" class="title-start-btn">TAP TO START</button>
       </div>
@@ -49,9 +38,16 @@
           <span class="hud-value" id="hud-score">0</span>
         </div>
         <div class="hud-time-box">
-          <span class="hud-label">🍯 TIME</span>
-          <span class="hud-value" id="hud-time">0.0s</span>
+          <span class="hud-label">⏰ TIME</span>
+          <span class="hud-value" id="hud-time">30s</span>
         </div>
+      </div>
+      <div class="hud-timer-wrap">
+        <div class="hud-timer-bar" id="hud-timer-bar"></div>
+      </div>
+      <div class="hud-honey-wrap">
+        <span class="hud-honey-label">🍯</span>
+        <div class="hud-honey-bar"><div class="hud-honey-fill" id="hud-honey"></div></div>
       </div>
       <div class="hud-bottom">
         <div class="hud-gauge">
@@ -63,37 +59,44 @@
 
     <!-- ══════ Game Result Screen ══════ -->
     <div id="game-result">
-      <div class="result-inner donut-result">
-        <p class="donut-title">GAME<br>OVER</p>
-        <div class="donut-stats">
-          <div class="donut-stat">
-            <span class="donut-stat-label">SCORE</span>
-            <span class="donut-stat-value" id="result-score">0</span>
+      <div class="result-inner">
+        <p class="result-title">TIME UP!</p>
+        <div class="result-score-main">
+          <span class="result-score-label">SCORE</span>
+          <span class="result-score-value" id="result-score">0</span>
+        </div>
+        <div class="result-stats">
+          <div class="result-stat">
+            <span class="result-stat-icon">🐝</span>
+            <span class="result-stat-val" id="result-bees">0</span>
+            <span class="result-stat-lbl">repelled</span>
           </div>
-          <div class="donut-stat">
-            <span class="donut-stat-label">TIME</span>
-            <span class="donut-stat-value" id="result-time">0s</span>
+          <div class="result-stat">
+            <span class="result-stat-icon">🍩</span>
+            <span class="result-stat-val" id="result-donuts">0</span>
+            <span class="result-stat-lbl">collected</span>
           </div>
-          <div class="donut-stat">
-            <span class="donut-stat-label">LEVEL</span>
-            <span class="donut-stat-value" id="result-wave">1</span>
+          <div class="result-stat">
+            <span class="result-stat-icon">🍯</span>
+            <span class="result-stat-val" id="result-honey">100%</span>
+            <span class="result-stat-lbl">remaining</span>
           </div>
         </div>
-        <p class="donut-new" id="result-new">🍯 NEW RECORD 🍯</p>
-        <p class="donut-high">BEST SCORE: <span id="result-high">0</span></p>
-        <p class="result-gate-msg" id="result-gate-msg"></p>
-        <!-- Name Input for TOP 10 -->
+        <p class="result-new" id="result-new">🍯 NEW RECORD! 🍯</p>
+        <p class="result-best">BEST: <span id="result-high">0</span></p>
+        <span id="result-time" style="display:none">30s</span>
+        <!-- Name Input -->
         <div id="lb-name-input-area">
           <p class="lb-qualify">🎉 TOP 10 入り！名前を登録</p>
           <div class="lb-input-row">
             <input id="lb-name" type="text" maxlength="8" placeholder="なまえ（8文字以内）" autocomplete="off" />
-            <button id="lb-submit-btn" class="donut-btn lb-submit">登録</button>
+            <button id="lb-submit-btn" class="result-btn lb-submit">登録</button>
           </div>
         </div>
         <div class="result-buttons">
-          <button id="game-replay" class="donut-btn">RETRY</button>
-          <button id="game-ranking-btn" class="donut-btn donut-btn-rank">🏆 RANKING</button>
-          <button id="game-exit" class="donut-btn donut-btn-exit">EXIT</button>
+          <button id="game-replay" class="result-btn">RETRY</button>
+          <button id="game-ranking-btn" class="result-btn result-btn-rank">🏆 RANKING</button>
+          <button id="game-exit" class="result-btn result-btn-exit">EXIT</button>
         </div>
       </div>
     </div>
@@ -112,25 +115,19 @@
           <button class="lb-tab active" data-tab="alltime">ALL TIME</button>
           <button class="lb-tab" data-tab="today">TODAY</button>
         </div>
-        <table class="lb-table">
-          <thead><tr><th></th><th>NAME</th><th>SCORE</th><th>WAVE</th><th>DATE</th></tr></thead>
-          <tbody id="lb-tbody"></tbody>
-        </table>
+        <div class="lb-list" id="lb-list"></div>
       </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="game.js?v=4"></script>
-    <script src="leaderboard.js?v=4"></script>
-    <script src="app.js?v=4"></script>
+    <script src="game.js?v=5"></script>
+    <script src="leaderboard.js?v=5"></script>
+    <script src="app.js?v=5"></script>
     <script>
-      // Force clear old service worker caches
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(regs => {
-          regs.forEach(r => r.unregister());
-        });
-        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+        navigator.serviceWorker.getRegistrations().then(r => r.forEach(x => x.unregister()));
+        caches.keys().then(k => k.forEach(c => caches.delete(c)));
       }
     </script>
   </body>

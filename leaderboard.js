@@ -1,83 +1,50 @@
 /* ======================================
-   Honey Island Defense — Leaderboard (Supabase)
-   Score-based ranking with 30s survival gate
+   Honey Island Defense — Leaderboard v2
+   30s game, score-based ranking
    ====================================== */
 const Leaderboard = (() => {
   'use strict';
-
   const SUPABASE_URL = 'https://mounixlvppmueddrdbxc.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdW5peGx2cHBtdWVkZHJkYnhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NjE0MzMsImV4cCI6MjA4OTAzNzQzM30.Q8m649yPOJzgHqofe89NJ9199fj0FNieST5uvaJbRIQ';
-
-  let db = null;
-  let currentTab = 'alltime';
-  let lastScore = 0;
+  let db = null, currentTab = 'alltime', lastScore = 0;
 
   function init() {
     if (db) return;
-    if (typeof supabase === 'undefined') { console.warn('Supabase not loaded'); return; }
+    if (typeof supabase === 'undefined') return;
     db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   }
 
-  // === API ===
   async function fetchTop10() {
-    init();
-    if (!db) return [];
-    const { data, error } = await db
-      .from('leaderboard')
-      .select('*')
-      .order('score', { ascending: false })
-      .limit(10);
+    init(); if (!db) return [];
+    const { data, error } = await db.from('leaderboard').select('*').order('score', { ascending: false }).limit(10);
     return error ? [] : data;
   }
-
   async function fetchTodayTop10() {
-    init();
-    if (!db) return [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const { data, error } = await db
-      .from('leaderboard')
-      .select('*')
-      .gte('created_at', today.toISOString())
-      .order('score', { ascending: false })
-      .limit(10);
+    init(); if (!db) return [];
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const { data, error } = await db.from('leaderboard').select('*').gte('created_at', today.toISOString()).order('score', { ascending: false }).limit(10);
     return error ? [] : data;
   }
-
   async function isTop10(score) {
-    init();
-    if (!db) return true;
-    const { data, error } = await db
-      .from('leaderboard')
-      .select('score')
-      .order('score', { ascending: false })
-      .limit(10);
+    init(); if (!db) return true;
+    const { data, error } = await db.from('leaderboard').select('score').order('score', { ascending: false }).limit(10);
     if (error || !data) return true;
-    if (data.length < 10) return true;
-    return score > data[data.length - 1].score;
+    return data.length < 10 || score > data[data.length - 1].score;
   }
-
   async function submit(name, score, wave, hits) {
-    init();
-    if (!db) return null;
-    const { data, error } = await db
-      .from('leaderboard')
-      .insert([{ name, score, wave, hits }])
-      .select();
+    init(); if (!db) return null;
+    const { data, error } = await db.from('leaderboard').insert([{ name, score, wave, hits }]).select();
     return error ? null : data;
   }
 
-  // === UI ===
   function showPanel() {
-    const panel = document.getElementById('leaderboard-panel');
-    if (panel) { panel.classList.add('visible'); refreshBoard(); }
+    const p = document.getElementById('leaderboard-panel');
+    if (p) { p.classList.add('visible'); refreshBoard(); }
   }
-
   function hidePanel() {
-    const panel = document.getElementById('leaderboard-panel');
-    if (panel) panel.classList.remove('visible');
+    const p = document.getElementById('leaderboard-panel');
+    if (p) p.classList.remove('visible');
   }
-
   function switchTab(tab) {
     currentTab = tab;
     document.querySelectorAll('.lb-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
@@ -85,61 +52,44 @@ const Leaderboard = (() => {
   }
 
   async function refreshBoard() {
-    const tbody = document.getElementById('lb-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:rgba(255,255,255,0.4)">読み込み中...</td></tr>';
-
+    const list = document.getElementById('lb-list');
+    if (!list) return;
+    list.innerHTML = '<div class="lb-loading">読み込み中...</div>';
     const data = currentTab === 'today' ? await fetchTodayTop10() : await fetchTop10();
-
     if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:rgba(255,255,255,0.4)">まだ記録がありません</td></tr>';
+      list.innerHTML = '<div class="lb-loading">まだ記録がありません</div>';
       return;
     }
-
     const medals = ['🥇', '🥈', '🥉'];
-    tbody.innerHTML = data.map((row, i) => {
+    list.innerHTML = data.map((row, i) => {
       const rank = i < 3 ? medals[i] : `${i + 1}`;
       const isMe = row.score === lastScore;
-      const cls = isMe ? 'lb-row lb-me' : 'lb-row';
-      const rankCls = i < 3 ? `lb-rank lb-rank-${i + 1}` : 'lb-rank';
       const date = new Date(row.created_at);
       const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
-      return `<tr class="${cls}">
-        <td class="${rankCls}">${rank}</td>
-        <td class="lb-name">${escapeHtml(row.name)}</td>
-        <td class="lb-score">${row.score}</td>
-        <td class="lb-wave">Lv${row.wave}</td>
-        <td class="lb-date">${dateStr}</td>
-      </tr>`;
+      return `<div class="lb-card${isMe ? ' lb-me' : ''}${i < 3 ? ' lb-top' : ''}">
+        <span class="lb-card-rank${i < 3 ? ` lb-rank-${i + 1}` : ''}">${rank}</span>
+        <div class="lb-card-info">
+          <span class="lb-card-name">${escapeHtml(row.name)}</span>
+          <span class="lb-card-date">${dateStr}</span>
+        </div>
+        <div class="lb-card-score">
+          <span class="lb-card-pts">${row.score}</span>
+          <span class="lb-card-sub">🐝${row.wave || 0} 🍩${row.hits || 0}</span>
+        </div>
+      </div>`;
     }).join('');
   }
 
   function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
   }
 
-  // Show name input if qualified (TOP 10 + survived 30s)
-  async function onGameOver(score, wave, hits, qualified) {
+  async function onGameOver(score, beesRepelled, donutsCollected) {
     lastScore = score;
     const nameInput = document.getElementById('lb-name-input-area');
-    const gateMsg = document.getElementById('result-gate-msg');
     if (!nameInput) return;
-
-    if (!qualified) {
-      nameInput.classList.remove('visible');
-      if (gateMsg) {
-        gateMsg.textContent = '⏰ 30秒以上生存でランキング登録可能！';
-        gateMsg.style.display = 'block';
-      }
-      return;
-    }
-
-    if (gateMsg) gateMsg.style.display = 'none';
-
-    const isQualified = await isTop10(score);
-    if (isQualified && score > 0) {
+    const qualified = await isTop10(score);
+    if (qualified && score > 0) {
       nameInput.classList.add('visible');
       const input = document.getElementById('lb-name');
       if (input) { input.value = ''; input.focus(); }
@@ -152,39 +102,28 @@ const Leaderboard = (() => {
     const input = document.getElementById('lb-name');
     const btn = document.getElementById('lb-submit-btn');
     if (!input || !btn) return;
-
     const name = input.value.trim();
     if (!name || name.length < 1 || name.length > 8) {
       input.classList.add('shake');
       setTimeout(() => input.classList.remove('shake'), 400);
       return;
     }
-
-    btn.disabled = true;
-    btn.textContent = '送信中...';
-
+    btn.disabled = true; btn.textContent = '送信中...';
     const scoreEl = document.getElementById('result-score');
-    const waveEl = document.getElementById('result-wave');
+    const beesEl = document.getElementById('result-bees');
+    const donutsEl = document.getElementById('result-donuts');
     const score = parseInt(scoreEl?.textContent || '0', 10);
-    const wave = parseInt(waveEl?.textContent || '1', 10);
-
-    await submit(name, score, wave, 0);
-
+    const bees = parseInt(beesEl?.textContent || '0', 10);
+    const donuts = parseInt(donutsEl?.textContent || '0', 10);
+    // wave = bees repelled, hits = donuts collected
+    await submit(name, score, bees, donuts);
     btn.textContent = '登録完了！';
     const nameArea = document.getElementById('lb-name-input-area');
-    if (nameArea) {
-      setTimeout(() => {
-        nameArea.classList.remove('visible');
-        showPanel();
-      }, 600);
-    }
+    if (nameArea) setTimeout(() => { nameArea.classList.remove('visible'); showPanel(); }, 600);
   }
 
-  // === INIT LISTENERS ===
   function bindEvents() {
-    document.querySelectorAll('.lb-tab').forEach(tab => {
-      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-    });
+    document.querySelectorAll('.lb-tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
     const submitBtn = document.getElementById('lb-submit-btn');
     if (submitBtn) submitBtn.addEventListener('click', submitFromUI);
     const nameInput = document.getElementById('lb-name');
@@ -195,11 +134,8 @@ const Leaderboard = (() => {
     if (rankBtn) rankBtn.addEventListener('click', showPanel);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindEvents);
-  } else {
-    bindEvents();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindEvents);
+  else bindEvents();
 
   return { fetchTop10, fetchTodayTop10, isTop10, submit, showPanel, hidePanel, onGameOver, refreshBoard };
 })();
