@@ -1,5 +1,5 @@
 /* ======================================
-   ドーナツシューティング — Leaderboard (Supabase)
+   Honey Island Defense — Leaderboard (Supabase)
    ====================================== */
 const Leaderboard = (() => {
   'use strict';

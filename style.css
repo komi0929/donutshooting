@@ -1,6 +1,6 @@
 /* ======================================
-   ドーナツシューティング — Style
-   Pastel Bakery Theme
+   Honey Island Defense — Style
+   Ocean & Island Theme
    ====================================== */
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -10,25 +10,28 @@
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
-  /* Donut palette */
-  --donut-pink: #ff8fab;
-  --donut-hot: #ff4081;
-  --donut-choco: #3d1a0e;
-  --donut-cream: #fff5e6;
-  --donut-vanilla: #ffecd2;
-  --donut-caramel: #d4a574;
-  --donut-mint: #a8e6cf;
-  --donut-berry: #dda0dd;
-  --donut-gold: #ffd700;
-  --donut-bg: #2a1a0e;
-  --donut-bg-light: #3d2a1a;
+  /* Honey Island palette */
+  --honey-gold: #FFD700;
+  --honey-amber: #DAA520;
+  --honey-light: #FFF8DC;
+  --honey-warm: #ffecd2;
+  --ocean-deep: #0e4d6b;
+  --ocean-mid: #1a6b8a;
+  --ocean-light: #2d9ac2;
+  --sky-blue: #87CEEB;
+  --island-sand: #f5deb3;
+  --island-grass: #6ab04c;
+  --bee-yellow: #FFD700;
+  --wood-brown: #8B6914;
+  --bg: #0e4d6b;
+  --bg-light: #145a7a;
 }
 
 html, body {
   width: 100%; height: 100dvh; overflow: hidden;
   touch-action: none; -webkit-touch-callout: none;
   -webkit-user-select: none; user-select: none;
-  background: var(--donut-bg); position: fixed; inset: 0;
+  background: var(--bg); position: fixed; inset: 0;
 }
 
 #canvas {
@@ -39,7 +42,7 @@ html, body {
 
 #transition-overlay {
   position: fixed; inset: 0; z-index: 10;
-  background: var(--donut-bg); opacity: 0;
+  background: var(--bg); opacity: 0;
   pointer-events: none; transition: opacity 0.15s ease-in;
 }
 #transition-overlay.flash { opacity: 1; transition: opacity 0.05s ease-in; }
@@ -51,7 +54,7 @@ html, body {
 #title-screen {
   position: fixed; inset: 0; z-index: 50;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #3d1a0e 0%, #5a2d1a 40%, #3d1a0e 100%);
+  background: linear-gradient(135deg, #0a3a52 0%, #145a7a 40%, #0e4d6b 100%);
   opacity: 0; pointer-events: none;
   transition: opacity 0.5s ease;
 }
@@ -68,27 +71,24 @@ html, body {
 
 .title-donut-emoji {
   font-size: 5rem;
-  filter: drop-shadow(0 0 20px rgba(255,143,171,0.6));
-  animation: donutSpin 4s linear infinite;
+  filter: drop-shadow(0 0 20px rgba(255,215,0,0.6));
+  animation: honeySway 3s ease-in-out infinite;
   margin-bottom: 1rem;
 }
-@keyframes donutSpin {
-  0% { transform: rotate(0deg) scale(1); }
-  25% { transform: rotate(90deg) scale(1.05); }
-  50% { transform: rotate(180deg) scale(1); }
-  75% { transform: rotate(270deg) scale(1.05); }
-  100% { transform: rotate(360deg) scale(1); }
+@keyframes honeySway {
+  0%, 100% { transform: scale(1) rotate(-5deg); }
+  50% { transform: scale(1.08) rotate(5deg); }
 }
 
 .title-logo {
   font-family: 'Outfit', sans-serif;
   font-size: 3.5rem; font-weight: 900;
-  color: var(--donut-pink);
+  color: var(--honey-gold);
   text-shadow:
-    0 0 20px rgba(255,143,171,0.6),
-    0 0 60px rgba(255,143,171,0.3),
-    0 4px 0 #c4607a,
-    0 8px 0 #a0485e;
+    0 0 20px rgba(255,215,0,0.6),
+    0 0 60px rgba(255,215,0,0.3),
+    0 4px 0 #b8860b,
+    0 8px 0 #8B6914;
   letter-spacing: 0.1em; line-height: 1.1;
   margin-bottom: 1rem;
 }
@@ -96,7 +96,7 @@ html, body {
 .title-sub {
   font-family: 'Outfit', sans-serif;
   font-size: 1.1rem; font-weight: 600;
-  color: var(--donut-vanilla);
+  color: var(--honey-warm);
   letter-spacing: 0.3em;
   opacity: 0.8;
   margin-bottom: 0.5rem;
@@ -104,7 +104,7 @@ html, body {
 
 .title-highscore {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.8rem; color: var(--donut-caramel);
+  font-size: 0.8rem; color: var(--honey-amber);
   letter-spacing: 0.1em; opacity: 0.6;
   margin-bottom: 2rem;
 }
@@ -114,39 +114,39 @@ html, body {
   font-size: 1.1rem; font-weight: 800;
   letter-spacing: 0.2em;
   padding: 1rem 3rem;
-  border: 3px solid var(--donut-pink);
+  border: 3px solid var(--honey-gold);
   border-radius: 50px;
-  background: linear-gradient(135deg, rgba(255,143,171,0.25), rgba(255,64,129,0.15));
-  color: var(--donut-pink);
+  background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(218,165,32,0.15));
+  color: var(--honey-gold);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   transition: all 0.3s ease;
-  box-shadow: 0 0 20px rgba(255,143,171,0.2), inset 0 0 20px rgba(255,143,171,0.05);
+  box-shadow: 0 0 20px rgba(255,215,0,0.2), inset 0 0 20px rgba(255,215,0,0.05);
   animation: startPulse 2s ease-in-out infinite;
 }
 @keyframes startPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(255,143,171,0.2), inset 0 0 20px rgba(255,143,171,0.05); }
-  50% { box-shadow: 0 0 35px rgba(255,143,171,0.4), inset 0 0 30px rgba(255,143,171,0.1); }
+  0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.2), inset 0 0 20px rgba(255,215,0,0.05); }
+  50% { box-shadow: 0 0 35px rgba(255,215,0,0.4), inset 0 0 30px rgba(255,215,0,0.1); }
 }
 .title-start-btn:active {
   transform: scale(0.95);
-  background: linear-gradient(135deg, rgba(255,143,171,0.4), rgba(255,64,129,0.3));
+  background: linear-gradient(135deg, rgba(255,215,0,0.4), rgba(218,165,32,0.3));
 }
 
 /* ═══════════════════════════════════
    Game Active State
    ═══════════════════════════════════ */
-body.game-active { background: var(--donut-bg) !important; }
-body.game-active #canvas { background: var(--donut-bg) !important; }
+body.game-active { background: var(--bg) !important; }
+body.game-active #canvas { background: var(--bg) !important; }
 
 /* ═══════════════════════════════════
-   Game Result Screen — Donut Theme
+   Game Result Screen — Honey Theme
    ═══════════════════════════════════ */
 #game-result {
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(42, 26, 14, 0.95);
+  background: rgba(14, 77, 107, 0.95);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   opacity: 0; pointer-events: none; transition: opacity 0.5s ease;
 }
@@ -162,14 +162,14 @@ body.game-active #canvas { background: var(--donut-bg) !important; }
 .donut-title {
   font-family: 'Outfit', sans-serif;
   font-size: 3.5rem; font-weight: 900;
-  color: var(--donut-pink);
-  text-shadow: 0 0 20px rgba(255,143,171,0.6), 0 0 60px rgba(255,143,171,0.3);
+  color: var(--honey-gold);
+  text-shadow: 0 0 20px rgba(255,215,0,0.6), 0 0 60px rgba(255,215,0,0.3);
   letter-spacing: 0.15em; line-height: 1.1; margin-bottom: 2rem;
-  animation: donutPulse 2s ease-in-out infinite;
+  animation: honeyPulse 2s ease-in-out infinite;
 }
-@keyframes donutPulse {
-  0%, 100% { text-shadow: 0 0 20px rgba(255,143,171,0.6), 0 0 60px rgba(255,143,171,0.3); }
-  50% { text-shadow: 0 0 30px rgba(255,143,171,0.8), 0 0 80px rgba(255,143,171,0.5); }
+@keyframes honeyPulse {
+  0%, 100% { text-shadow: 0 0 20px rgba(255,215,0,0.6), 0 0 60px rgba(255,215,0,0.3); }
+  50% { text-shadow: 0 0 30px rgba(255,215,0,0.8), 0 0 80px rgba(255,215,0,0.5); }
 }
 
 .donut-stats { display: flex; gap: 2rem; justify-content: center; margin-bottom: 1.5rem; }
@@ -177,20 +177,20 @@ body.game-active #canvas { background: var(--donut-bg) !important; }
 .donut-stat-label {
   font-family: 'Outfit', sans-serif;
   font-size: 0.7rem; font-weight: 600;
-  color: var(--donut-caramel);
+  color: var(--honey-amber);
   letter-spacing: 0.2em; margin-bottom: 0.3rem;
   opacity: 0.7;
 }
 .donut-stat-value {
   font-family: 'Outfit', sans-serif;
   font-size: 2.2rem; font-weight: 800;
-  color: var(--donut-cream);
-  text-shadow: 0 0 12px rgba(255,245,230,0.3);
+  color: var(--honey-light);
+  text-shadow: 0 0 12px rgba(255,248,220,0.3);
 }
 
 .donut-new {
   font-family: 'Outfit', sans-serif;
-  font-size: 1rem; font-weight: 700; color: var(--donut-gold);
+  font-size: 1rem; font-weight: 700; color: var(--honey-gold);
   text-shadow: 0 0 15px rgba(255,215,0,0.5);
   margin-bottom: 0.5rem; animation: newRec 0.6s ease;
 }
@@ -198,7 +198,7 @@ body.game-active #canvas { background: var(--donut-bg) !important; }
 
 .donut-high {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.75rem; color: rgba(255,245,230,0.5);
+  font-size: 0.75rem; color: rgba(255,248,220,0.5);
   letter-spacing: 0.1em; margin-bottom: 2rem;
 }
 
@@ -208,30 +208,30 @@ body.game-active #canvas { background: var(--donut-bg) !important; }
   font-family: 'Outfit', sans-serif;
   font-size: 0.9rem; font-weight: 700; letter-spacing: 0.15em;
   padding: 0.8rem 2.2rem;
-  border: 2px solid var(--donut-pink);
+  border: 2px solid var(--honey-gold);
   border-radius: 50px;
-  background: linear-gradient(135deg, rgba(255,143,171,0.2), rgba(255,64,129,0.1));
-  color: var(--donut-pink);
+  background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(218,165,32,0.1));
+  color: var(--honey-gold);
   cursor: pointer;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   transition: all 0.2s ease;
-  text-shadow: 0 0 8px rgba(255,143,171,0.4);
-  box-shadow: 0 0 15px rgba(255,143,171,0.15), inset 0 0 15px rgba(255,143,171,0.05);
+  text-shadow: 0 0 8px rgba(255,215,0,0.4);
+  box-shadow: 0 0 15px rgba(255,215,0,0.15), inset 0 0 15px rgba(255,215,0,0.05);
 }
 .donut-btn:active {
   transform: scale(0.95);
-  background: linear-gradient(135deg, rgba(255,143,171,0.35), rgba(255,64,129,0.2));
-  box-shadow: 0 0 25px rgba(255,143,171,0.3);
+  background: linear-gradient(135deg, rgba(255,215,0,0.35), rgba(218,165,32,0.2));
+  box-shadow: 0 0 25px rgba(255,215,0,0.3);
 }
 .donut-btn-exit {
-  border-color: rgba(255,245,230,0.2); background: transparent;
-  color: rgba(255,245,230,0.5); text-shadow: none; box-shadow: none;
+  border-color: rgba(255,248,220,0.2); background: transparent;
+  color: rgba(255,248,220,0.5); text-shadow: none; box-shadow: none;
 }
-.donut-btn-exit:active { background: rgba(255,245,230,0.05); }
+.donut-btn-exit:active { background: rgba(255,248,220,0.05); }
 .donut-btn-rank {
-  border-color: var(--donut-gold);
+  border-color: var(--honey-gold);
   background: rgba(255,215,0,0.12);
-  color: var(--donut-gold);
+  color: var(--honey-gold);
   text-shadow: 0 0 6px rgba(255,215,0,0.4);
   box-shadow: 0 0 12px rgba(255,215,0,0.12);
 }
@@ -250,9 +250,9 @@ body.game-active #canvas { background: var(--donut-bg) !important; }
   left: calc(12px + env(safe-area-inset-left, 0px));
   z-index: 20;
   width: 44px; height: 44px;
-  border: 2px solid rgba(255,245,230,0.3); border-radius: 50%;
-  background: rgba(42,26,14,0.6);
-  color: rgba(255,245,230,0.7);
+  border: 2px solid rgba(255,248,220,0.3); border-radius: 50%;
+  background: rgba(14,77,107,0.6);
+  color: rgba(255,248,220,0.7);
   font-size: 1.1rem; line-height: 1;
   cursor: pointer; touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -260,15 +260,15 @@ body.game-active #canvas { background: var(--donut-bg) !important; }
   transition: all 0.2s ease;
 }
 body.game-active .game-exit-btn { display: flex; align-items: center; justify-content: center; }
-.game-exit-btn:active { background: rgba(255,143,171,0.3); border-color: var(--donut-pink); color: var(--donut-pink); }
+.game-exit-btn:active { background: rgba(255,215,0,0.3); border-color: var(--honey-gold); color: var(--honey-gold); }
 
 /* ═══════════════════════════════════
-   Leaderboard Panel — Bakery Theme
+   Leaderboard Panel — Honey Theme
    ═══════════════════════════════════ */
 #leaderboard-panel {
   position: fixed; inset: 0; z-index: 200;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(42, 26, 14, 0.97);
+  background: rgba(14, 77, 107, 0.97);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
   padding: env(safe-area-inset-top, 16px) 0 env(safe-area-inset-bottom, 16px) 0;
@@ -287,62 +287,62 @@ body.game-active .game-exit-btn { display: flex; align-items: center; justify-co
 }
 .lb-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.3rem; font-weight: 900; color: var(--donut-gold);
+  font-size: 1.3rem; font-weight: 900; color: var(--honey-gold);
   text-shadow: 0 0 12px rgba(255,215,0,0.5); letter-spacing: 0.1em;
 }
 .lb-close-btn {
   width: 44px; height: 44px;
-  border: 2px solid rgba(255,245,230,0.25);
-  border-radius: 50%; background: rgba(255,245,230,0.05);
-  color: rgba(255,245,230,0.7);
+  border: 2px solid rgba(255,248,220,0.25);
+  border-radius: 50%; background: rgba(255,248,220,0.05);
+  color: rgba(255,248,220,0.7);
   font-size: 1.1rem; cursor: pointer; touch-action: manipulation;
   -webkit-tap-highlight-color: transparent; transition: all 0.2s ease;
   display: flex; align-items: center; justify-content: center;
 }
-.lb-close-btn:active { background: rgba(255,245,230,0.15); color: #fff; }
+.lb-close-btn:active { background: rgba(255,248,220,0.15); color: #fff; }
 
 .lb-tabs { display: flex; gap: 6px; margin-bottom: 1.2rem; }
 .lb-tab {
   flex: 1; min-height: 44px;
   display: flex; align-items: center; justify-content: center;
-  border: 1.5px solid rgba(255,143,171,0.3);
+  border: 1.5px solid rgba(255,215,0,0.3);
   border-radius: 25px; background: transparent;
-  color: rgba(255,143,171,0.5);
+  color: rgba(255,215,0,0.5);
   font-family: 'Outfit', sans-serif; font-size: 0.75rem; font-weight: 700;
   letter-spacing: 0.1em; cursor: pointer; touch-action: manipulation;
   -webkit-tap-highlight-color: transparent; transition: all 0.2s ease;
 }
 .lb-tab.active {
-  background: rgba(255,143,171,0.15); color: var(--donut-pink);
-  border-color: var(--donut-pink); box-shadow: 0 0 10px rgba(255,143,171,0.2);
+  background: rgba(255,215,0,0.15); color: var(--honey-gold);
+  border-color: var(--honey-gold); box-shadow: 0 0 10px rgba(255,215,0,0.2);
 }
 
 .lb-table { width: 100%; border-collapse: collapse; }
 .lb-table thead th {
   font-family: 'Outfit', sans-serif;
   font-size: 0.55rem; font-weight: 600;
-  color: rgba(255,143,171,0.5);
+  color: rgba(255,215,0,0.5);
   letter-spacing: 0.12em; padding: 8px 2px; text-align: center;
-  border-bottom: 1px solid rgba(255,143,171,0.15);
+  border-bottom: 1px solid rgba(255,215,0,0.15);
 }
 .lb-row {
-  border-bottom: 1px solid rgba(255,245,230,0.06);
+  border-bottom: 1px solid rgba(255,248,220,0.06);
   transition: background 0.2s ease;
 }
 .lb-row td {
   padding: 12px 3px; text-align: center;
   font-family: 'Outfit', sans-serif; vertical-align: middle;
 }
-.lb-rank { font-size: 1rem; font-weight: 700; color: rgba(255,245,230,0.5); width: 40px; }
+.lb-rank { font-size: 1rem; font-weight: 700; color: rgba(255,248,220,0.5); width: 40px; }
 .lb-rank-1 { color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.6); font-size: 1.2rem; }
 .lb-rank-2 { color: #c0c0c0; text-shadow: 0 0 8px rgba(192,192,192,0.5); font-size: 1.1rem; }
 .lb-rank-3 { color: #cd7f32; text-shadow: 0 0 8px rgba(205,127,50,0.5); font-size: 1.1rem; }
-.lb-name { font-size: 0.8rem; font-weight: 700; color: var(--donut-cream); letter-spacing: 0.05em; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
-.lb-score { font-size: 0.85rem; font-weight: 700; color: var(--donut-gold); }
-.lb-wave { font-size: 0.7rem; color: rgba(255,143,171,0.7); }
-.lb-date { font-size: 0.55rem; color: rgba(255,245,230,0.35); }
-.lb-me { background: rgba(255,143,171,0.1); }
-.lb-me .lb-name { color: var(--donut-pink); }
+.lb-name { font-size: 0.8rem; font-weight: 700; color: var(--honey-light); letter-spacing: 0.05em; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
+.lb-score { font-size: 0.85rem; font-weight: 700; color: var(--honey-gold); }
+.lb-wave { font-size: 0.7rem; color: rgba(135,206,235,0.7); }
+.lb-date { font-size: 0.55rem; color: rgba(255,248,220,0.35); }
+.lb-me { background: rgba(255,215,0,0.1); }
+.lb-me .lb-name { color: var(--honey-gold); }
 
 /* Name Input Area (Result Screen) */
 #lb-name-input-area {
@@ -354,23 +354,23 @@ body.game-active .game-exit-btn { display: flex; align-items: center; justify-co
 @keyframes fadeSlideIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 .lb-qualify {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.75rem; font-weight: 700; color: var(--donut-gold);
+  font-size: 0.75rem; font-weight: 700; color: var(--honey-gold);
   text-shadow: 0 0 8px rgba(255,215,0,0.4); margin-bottom: 0.8rem;
   text-align: center;
 }
 .lb-input-row { display: flex; gap: 8px; align-items: center; }
 #lb-name {
   flex: 1; padding: 10px 12px;
-  border: 2px solid rgba(255,143,171,0.3);
+  border: 2px solid rgba(255,215,0,0.3);
   border-radius: 25px;
-  background: rgba(0,0,0,0.4); color: var(--donut-cream);
+  background: rgba(0,0,0,0.4); color: var(--honey-light);
   font-family: 'Outfit', sans-serif; font-size: 1rem;
   outline: none; transition: border-color 0.2s ease;
   -webkit-appearance: none; appearance: none;
   min-height: 44px;
 }
-#lb-name:focus { border-color: var(--donut-pink); box-shadow: 0 0 12px rgba(255,143,171,0.25); }
-#lb-name::placeholder { color: rgba(255,245,230,0.25); font-size: 0.75rem; }
+#lb-name:focus { border-color: var(--honey-gold); box-shadow: 0 0 12px rgba(255,215,0,0.25); }
+#lb-name::placeholder { color: rgba(255,248,220,0.25); font-size: 0.75rem; }
 #lb-name.shake { animation: inputShake 0.4s ease; }
 @keyframes inputShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
 .lb-submit {

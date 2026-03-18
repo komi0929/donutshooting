@@ -1,5 +1,5 @@
 /* ======================================
-   ドーナツシューティング — App Controller
+   Honey Island Defense — App Controller
    Title Screen → Game → Result loop
    ====================================== */
 

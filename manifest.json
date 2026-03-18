@@ -1,12 +1,12 @@
 {
-  "name": "ドーナツシューティング",
-  "short_name": "ドーナツ",
-  "description": "ドーナツを守れ！可愛くて本格的なシューティングゲーム",
+  "name": "Honey Island Defense",
+  "short_name": "HoneyIsland",
+  "description": "ハチミツを守れ！可愛い孤島ディフェンスゲーム",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#2a1a0e",
-  "theme_color": "#ff8fab",
+  "background_color": "#0e4d6b",
+  "theme_color": "#1a6b8a",
   "icons": [
     {
       "src": "assets/icon-192.png",
