@@ -3,11 +3,11 @@ const GameEngine=(()=>{'use strict';
 
 // === CONFIG ===
 const CFG={
-  gameDuration:30,honeyHP:100,playerSpeed:0.14,
-  shootInterval:180,windSpeed:0.4,windPush:4,
-  spawnStart:1400,spawnMin:280,maxBees:28,
+  gameDuration:30,honeyHP:100,playerSpeed:0.18,
+  swipeRange:2.8,swipeInterval:280,
+  spawnStart:1200,spawnMin:250,maxBees:30,
   donutInterval:4500,donutPoints:100,beePoints:10,
-  tapRepelPoints:25,beePenalty:50,tapRepelRadius:2.8,
+  tapSwipePoints:25,beePenalty:50,beeDamage:5,
 };
 const BS=0.5; // block size — fine voxels
 const IR=9;   // island radius in blocks
@@ -27,10 +27,10 @@ return{puff,buzz,steal,pickup,gameOver}})();
 let active=false,af;
 let scene,camera,renderer,clock;
 let islandGroup,honeyMesh,playerGroup,oceanMesh;
-let beeObjects=[],windObjects=[],donutObjects=[],particles=[];
+let beeObjects=[],donutObjects=[],particles=[];
 let clouds=[],waterFoam=[];
 let player=null,touching=false,tx=0,ty=0;
-let lastShot=0,lastSpawn=0,lastDonut=0;
+let lastSwipe=0,lastSpawn=0,lastDonut=0;
 let honey=null,survTime=0,diff=1,score=0;
 let highScore=parseInt(localStorage.getItem('honey_highscore2')||'0');
 let raycaster,pointer,groundPlane;
@@ -388,7 +388,7 @@ function initScene(container){
   clock=new THREE.Clock();initMaterials();
 }
 
-// === INPUT (tap-to-repel bees) ===
+// === INPUT (tap to move bear) ===
 function getWorldPos(cx,cy){
   const r=renderer.domElement.getBoundingClientRect();
   pointer.x=((cx-r.left)/r.width)*2-1;pointer.y=-((cy-r.top)/r.height)*2+1;
@@ -398,24 +398,7 @@ function getWorldPos(cx,cy){
 function onPD(e){
   if(!active)return;e.preventDefault();touching=true;
   const p=getWorldPos(e.clientX,e.clientY);if(!p)return;
-  // Check tap-to-repel on bees
-  let tappedBee=null,minD=CFG.tapRepelRadius;
-  for(const b of beeObjects){
-    const dx=b.mesh.position.x-p.x,dz=b.mesh.position.z-p.z;
-    const d=Math.hypot(dx,dz);
-    if(d<minD){minD=d;tappedBee=b;}
-  }
-  if(tappedBee&&tappedBee.stunTime<=0){
-    const dx=tappedBee.mesh.position.x,dz=tappedBee.mesh.position.z;
-    const d=Math.hypot(dx,dz)||1;
-    tappedBee.knockVx=(dx/d)*1.2;tappedBee.knockVz=(dz/d)*1.2;
-    tappedBee.stunTime=1500;score+=CFG.tapRepelPoints;beesRepelled++;
-    shakeTime=150;updateHUD();SFX.buzz();
-    // Particle burst
-    const pg=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,8),MAT.windPuff.clone());
-    pg.position.copy(tappedBee.mesh.position);scene.add(pg);
-    particles.push({mesh:pg,scale:1,life:1});
-  }else{tx=p.x;ty=p.z;}
+  tx=p.x;ty=p.z;
 }
 function onPM(e){if(!active||!touching)return;e.preventDefault();const p=getWorldPos(e.clientX,e.clientY);if(p){tx=p.x;ty=p.z;}}
 function onPU(){touching=false;}
@@ -432,36 +415,111 @@ function updatePlayer(dt){
   playerGroup.position.y=sy+0.8+Math.sin(performance.now()/500)*0.08;
 }
 
-function autoShoot(now){
-  if(!player.alive||now-lastShot<CFG.shootInterval||beeObjects.length===0)return;
-  lastShot=now;let near=null,nd=Infinity;
-  for(const b of beeObjects){if(b.stunTime>0)continue;const dx=b.mesh.position.x-playerGroup.position.x,dz=b.mesh.position.z-playerGroup.position.z;const d=Math.hypot(dx,dz);if(d<nd){nd=d;near=b;}}
-  if(!near)return;
-  const dx=near.mesh.position.x-playerGroup.position.x,dz=near.mesh.position.z-playerGroup.position.z,d=Math.hypot(dx,dz)||1;
-  const p=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,6),MAT.windPuff.clone());
-  p.position.copy(playerGroup.position);p.position.y+=0.8;scene.add(p);
-  windObjects.push({mesh:p,vx:(dx/d)*CFG.windSpeed,vz:(dz/d)*CFG.windSpeed,born:now,life:1});SFX.puff();
+// === BEAR SWIPE ATTACK (auto-attacks nearby bees) ===
+function bearSwipe(now){
+  if(!player.alive||!playerGroup||now-lastSwipe<CFG.swipeInterval)return;
+  let nearest=null,nd=CFG.swipeRange;
+  for(const b of beeObjects){
+    if(b.stunTime>0)continue;
+    const dx=b.mesh.position.x-playerGroup.position.x,dz=b.mesh.position.z-playerGroup.position.z;
+    const dy=b.mesh.position.y-playerGroup.position.y;
+    const d=Math.sqrt(dx*dx+dz*dz+dy*dy);
+    if(d<nd){nd=d;nearest=b;}
+  }
+  if(!nearest)return;
+  lastSwipe=now;
+  // Knockback
+  const dx=nearest.mesh.position.x-playerGroup.position.x;
+  const dz=nearest.mesh.position.z-playerGroup.position.z;
+  const d=Math.hypot(dx,dz)||1;
+  nearest.knockVx=(dx/d)*1.0;nearest.knockVz=(dz/d)*1.0;
+  nearest.stunTime=1200;nearest.state='stunned';
+  score+=CFG.beePoints;beesRepelled++;shakeTime=80;updateHUD();SFX.puff();
+  showScorePopup(nearest.mesh.position,'+'+CFG.beePoints);
+  spawnHitParticles(nearest.mesh.position);
+  // Bear arm swing
+  playerGroup.rotation.y=Math.atan2(dx,dz);
+  if(playerGroup._armSwing)clearTimeout(playerGroup._armSwing);
+  playerGroup.children.forEach(c=>{if(c.position.x>0.7)c.rotation.z=-0.8;});
+  playerGroup._armSwing=setTimeout(()=>{playerGroup.children.forEach(c=>{if(c.position.x>0.7)c.rotation.z=0;});},200);
 }
 
-function updateWinds(dt,now){
-  for(let i=windObjects.length-1;i>=0;i--){const w=windObjects[i];
-    w.mesh.position.x+=w.vx*dt*60;w.mesh.position.z+=w.vz*dt*60;w.mesh.scale.multiplyScalar(1.02);w.life-=0.015*dt*60;w.mesh.material.opacity=w.life*0.5;
-    if(w.life<=0||now-w.born>2000){scene.remove(w.mesh);w.mesh.geometry.dispose();w.mesh.material.dispose();windObjects.splice(i,1);}}
+// === VISUAL FEEDBACK ===
+function showScorePopup(pos3d,text){
+  if(!renderer||!camera)return;
+  const v=pos3d.clone().project(camera);
+  const x=(v.x*0.5+0.5)*renderer.domElement.clientWidth;
+  const y=(-v.y*0.5+0.5)*renderer.domElement.clientHeight;
+  const el=document.createElement('div');el.className='score-popup';
+  el.textContent=text;el.style.left=x+'px';el.style.top=y+'px';
+  document.body.appendChild(el);setTimeout(()=>el.remove(),900);
+}
+function showDamageFlash(){
+  const el=document.createElement('div');el.className='damage-flash';
+  document.body.appendChild(el);setTimeout(()=>el.remove(),400);
+}
+function spawnHitParticles(pos){
+  for(let i=0;i<3;i++){
+    const pg=new THREE.Mesh(new THREE.SphereGeometry(0.15,6,6),MAT.windPuff.clone());
+    pg.position.set(pos.x+rand(-0.3,0.3),pos.y+rand(-0.2,0.3),pos.z+rand(-0.3,0.3));
+    scene.add(pg);particles.push({mesh:pg,scale:0.5,life:1});
+  }
 }
 
+// === BEE AI (approach → orbit → dive) ===
 function spawnBee(){
-  const sm=1+diff*0.07;const a=rand(0,Math.PI*2),d=rand(10,16);
+  const sm=1+diff*0.08;const a=rand(0,Math.PI*2),d=rand(12,18);
   const mesh=createBeeModel();mesh.position.set(Math.cos(a)*d,rand(5,8),Math.sin(a)*d);scene.add(mesh);
-  beeObjects.push({mesh,speed:rand(0.038,0.075)*sm,phase:rand(0,Math.PI*2),knockVx:0,knockVz:0,stunTime:0,targetY:rand(4.5,6.5)});
+  beeObjects.push({mesh,speed:rand(0.04,0.08)*sm,phase:rand(0,Math.PI*2),
+    knockVx:0,knockVz:0,stunTime:0,targetY:rand(4.5,6.5),
+    state:'approach',circleAngle:a+Math.PI,circleR:rand(4,7),diveDelay:rand(2000,5000),stateStart:performance.now()});
 }
 
 function updateBees(dt,now){
   for(const b of beeObjects){
+    // Wing animation
     ['wingL1','wingR1','wingL2','wingR2'].forEach(n=>{const w=b.mesh.getObjectByName(n);if(w)w.rotation.z=(n.includes('L')?1:-1)*(0.3+Math.sin(now/35+b.phase)*0.6);});
-    if(b.stunTime>0){b.stunTime-=dt*1000;b.mesh.position.x+=b.knockVx*dt*60;b.mesh.position.z+=b.knockVz*dt*60;b.knockVx*=0.92;b.knockVz*=0.92;b.mesh.rotation.z=Math.sin(now/100)*0.5;continue;}
-    b.mesh.rotation.z=0;const dx=-b.mesh.position.x,dz=-b.mesh.position.z,d=Math.hypot(dx,dz);
-    if(d>0.5){b.mesh.position.x+=(dx/d)*b.speed*dt*60+Math.sin(now/400+b.phase)*0.02;b.mesh.position.z+=(dz/d)*b.speed*dt*60+Math.cos(now/350+b.phase)*0.015;b.mesh.rotation.y=Math.atan2(dx,dz);}
-    b.mesh.position.y=b.targetY+Math.sin(now/600+b.phase)*0.3;
+    // Stunned
+    if(b.stunTime>0||b.state==='stunned'){
+      b.stunTime-=dt*1000;
+      b.mesh.position.x+=b.knockVx*dt*60;b.mesh.position.z+=b.knockVz*dt*60;
+      b.mesh.position.y+=0.05*dt*60; // fly upward when hit
+      b.knockVx*=0.9;b.knockVz*=0.9;
+      b.mesh.rotation.z+=0.3*dt*60; // spin!
+      b.mesh.rotation.x+=0.2*dt*60;
+      if(b.stunTime<=0){b.state='approach';b.stateStart=now;b.mesh.rotation.z=0;b.mesh.rotation.x=0;}
+      continue;
+    }
+    b.mesh.rotation.z=0;b.mesh.rotation.x=0;
+    const distToCenter=Math.hypot(b.mesh.position.x,b.mesh.position.z);
+    if(b.state==='approach'){
+      // Fly toward orbit radius
+      if(distToCenter>b.circleR+0.5){
+        const dx=-b.mesh.position.x,dz=-b.mesh.position.z,dd=Math.hypot(dx,dz)||1;
+        b.mesh.position.x+=(dx/dd)*b.speed*dt*60;b.mesh.position.z+=(dz/dd)*b.speed*dt*60;
+        b.mesh.rotation.y=Math.atan2(dx,dz);
+      }else{b.state='circle';b.stateStart=now;b.circleAngle=Math.atan2(b.mesh.position.z,b.mesh.position.x);}
+    }else if(b.state==='circle'){
+      // Orbit around honey pot — menacing!
+      b.circleAngle+=b.speed*0.4*dt*60;
+      b.circleR-=0.003*dt*60; // slowly spiral in
+      b.mesh.position.x=Math.cos(b.circleAngle)*b.circleR;
+      b.mesh.position.z=Math.sin(b.circleAngle)*b.circleR;
+      b.targetY=Math.max(3.5,b.targetY-0.015*dt*60); // descend
+      b.mesh.rotation.y=b.circleAngle+Math.PI/2;
+      // After delay, DIVE!
+      if(now-b.stateStart>b.diveDelay){b.state='dive';b.stateStart=now;}
+    }else if(b.state==='dive'){
+      // Fast dive toward honey pot!
+      const dx=-b.mesh.position.x,dz=-b.mesh.position.z,dd=Math.hypot(dx,dz)||1;
+      const diveSpeed=b.speed*3.5;
+      b.mesh.position.x+=(dx/dd)*diveSpeed*dt*60;
+      b.mesh.position.z+=(dz/dd)*diveSpeed*dt*60;
+      b.mesh.position.y=Math.max(surfaceY(0,0)+1.5,b.mesh.position.y-0.12*dt*60);
+      b.mesh.rotation.y=Math.atan2(dx,dz);
+      b.mesh.rotation.x=0.3; // nose down
+    }
+    if(b.state!=='dive')b.mesh.position.y=b.targetY+Math.sin(now/600+b.phase)*0.3;
   }
 }
 
@@ -477,26 +535,28 @@ function updateDonuts(dt,now){
   for(let i=donutObjects.length-1;i>=0;i--){const d=donutObjects[i];
     d.mesh.rotation.y+=0.025*dt*60;d.mesh.position.y=(d.baseY||6)+Math.sin(now/500+i)*0.3;
     if(playerGroup){const dx=d.mesh.position.x-playerGroup.position.x,dz=d.mesh.position.z-playerGroup.position.z;
-      if(Math.hypot(dx,dz)<1.5){score+=CFG.donutPoints;donutsCollected++;updateHUD();SFX.pickup();scene.remove(d.mesh);donutObjects.splice(i,1);continue;}}
+      if(Math.hypot(dx,dz)<1.5){score+=CFG.donutPoints;donutsCollected++;updateHUD();SFX.pickup();
+        showScorePopup(d.mesh.position,'+'+CFG.donutPoints);
+        scene.remove(d.mesh);donutObjects.splice(i,1);continue;}}
     if(now-d.born>d.life){scene.remove(d.mesh);donutObjects.splice(i,1);}
   }
 }
 
 function updateParticles(dt){
-  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.scale+=0.3*dt*60;p.life-=0.03*dt*60;p.mesh.scale.set(p.scale,p.scale,p.scale);p.mesh.material.opacity=p.life*0.4;
+  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.scale+=0.25*dt*60;p.life-=0.04*dt*60;p.mesh.scale.set(p.scale,p.scale,p.scale);p.mesh.material.opacity=p.life*0.5;
     if(p.life<=0){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();particles.splice(i,1);}}
 }
 
 function checkCollisions(now){
-  for(let wi=windObjects.length-1;wi>=0;wi--){const w=windObjects[wi];
-    for(const b of beeObjects){const dx=b.mesh.position.x-w.mesh.position.x,dz=b.mesh.position.z-w.mesh.position.z,dy=b.mesh.position.y-w.mesh.position.y;
-      if(Math.sqrt(dx*dx+dz*dz+dy*dy)<1.5){const d=Math.hypot(dx,dz)||1;b.knockVx=(dx/d)*CFG.windPush*0.15;b.knockVz=(dz/d)*CFG.windPush*0.15;b.stunTime=600;score+=CFG.beePoints;beesRepelled++;updateHUD();SFX.buzz();scene.remove(w.mesh);w.mesh.geometry.dispose();w.mesh.material.dispose();windObjects.splice(wi,1);break;}}}
-  // Bees reach honey
-  for(let i=beeObjects.length-1;i>=0;i--){const b=beeObjects[i];if(b.stunTime>0)continue;
-    if(Math.hypot(b.mesh.position.x,b.mesh.position.z)<1.8&&b.mesh.position.y<6){
-      score=Math.max(0,score-CFG.beePenalty);honey.hp=Math.max(0,honey.hp-4);shakeTime=200;updateHUD();SFX.steal();scene.remove(b.mesh);beeObjects.splice(i,1);}}
+  // Bees reach honey pot
+  for(let i=beeObjects.length-1;i>=0;i--){const b=beeObjects[i];if(b.stunTime>0||b.state==='stunned')continue;
+    if(Math.hypot(b.mesh.position.x,b.mesh.position.z)<1.8&&b.mesh.position.y<surfaceY(0,0)+3){
+      score=Math.max(0,score-CFG.beePenalty);honey.hp=Math.max(0,honey.hp-CFG.beeDamage);
+      shakeTime=300;updateHUD();SFX.steal();showDamageFlash();
+      showScorePopup(b.mesh.position,'-'+CFG.beePenalty);
+      scene.remove(b.mesh);beeObjects.splice(i,1);}}
   // Remove far bees
-  for(let i=beeObjects.length-1;i>=0;i--){if(Math.hypot(beeObjects[i].mesh.position.x,beeObjects[i].mesh.position.z)>30){scene.remove(beeObjects[i].mesh);beeObjects.splice(i,1);}}
+  for(let i=beeObjects.length-1;i>=0;i--){if(Math.hypot(beeObjects[i].mesh.position.x,beeObjects[i].mesh.position.z)>35){scene.remove(beeObjects[i].mesh);beeObjects.splice(i,1);}}
 }
 
 // === HUD ===
@@ -550,7 +610,7 @@ function endGame(){
 function loop(){
   if(!active)return;af=requestAnimationFrame(loop);
   const dt=Math.min(clock.getDelta(),0.05),now=performance.now(),el=clock.elapsedTime;
-  updatePlayer(dt);autoShoot(now);updateWinds(dt,now);updateBees(dt,now);updateDonuts(dt,now);checkCollisions(now);updateParticles(dt);updateDiff(dt,now);updateCamera(el);animateOcean(el);
+  updatePlayer(dt);bearSwipe(now);updateBees(dt,now);updateDonuts(dt,now);checkCollisions(now);updateParticles(dt);updateDiff(dt,now);updateCamera(el);animateOcean(el);
   if(shakeTime>0)shakeTime=Math.max(0,shakeTime-dt*1000);
   for(const t of palmTrees){t.children.forEach((c,i)=>{if(i>=5)c.rotation.z=0.3+Math.sin(el*1.5+i)*0.1;});}
   for(const c of clouds){c.position.x=c.userData.baseX+Math.sin(el*c.userData.speed*20)*10;}
@@ -561,7 +621,7 @@ function loop(){
 // === START/STOP ===
 function start(container){
   cleanup();initScene(container);createOcean();createIsland();createBackgroundIslands();createPalmTrees();createHoneyPot();createPlayerModel();createClouds();
-  active=true;lastShot=0;lastSpawn=0;lastDonut=0;survTime=0;diff=1;score=0;beesRepelled=0;donutsCollected=0;shakeTime=0;
+  active=true;lastSwipe=0;lastSpawn=0;lastDonut=0;survTime=0;diff=1;score=0;beesRepelled=0;donutsCollected=0;shakeTime=0;
   honey={hp:CFG.honeyHP,maxHp:CFG.honeyHP};player={alive:true};tx=-1.5;ty=1;touching=false;
   renderer.domElement.addEventListener('pointerdown',onPD,{passive:false});renderer.domElement.addEventListener('pointermove',onPM,{passive:false});
   renderer.domElement.addEventListener('pointerup',onPU);renderer.domElement.addEventListener('pointercancel',onPU);
@@ -577,7 +637,7 @@ function cleanup(){
     if(renderer.domElement.parentNode)renderer.domElement.parentNode.removeChild(renderer.domElement);renderer.dispose();renderer=null;}
   if(window._honeyResize)window.removeEventListener('resize',window._honeyResize);
   if(scene){while(scene.children.length>0)scene.remove(scene.children[0]);}
-  beeObjects=[];windObjects=[];donutObjects=[];particles=[];clouds=[];waterFoam=[];palmTrees=[];bgIslands=[];
+  beeObjects=[];donutObjects=[];particles=[];clouds=[];waterFoam=[];palmTrees=[];bgIslands=[];
   scene=null;camera=null;islandGroup=null;honeyMesh=null;playerGroup=null;oceanMesh=null;
 }
 
