@@ -1,6 +1,6 @@
 /* ======================================
-   Honey Island Defense — Leaderboard v3
-   beesReached (lower=better) ranking
+   Honey Island Defense — Leaderboard v4
+   beesReached (lower=better), top 30
    ====================================== */
 const Leaderboard = (() => {
   'use strict';
@@ -14,23 +14,30 @@ const Leaderboard = (() => {
     db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   }
 
-  // Sort ascending: fewer bees reached = better
-  async function fetchTop10() {
+  async function fetchTop30() {
     init(); if (!db) return [];
-    const { data, error } = await db.from('leaderboard').select('*').order('score', { ascending: true }).limit(10);
+    const { data, error } = await db.from('leaderboard').select('*').order('score', { ascending: true }).limit(30);
     return error ? [] : data;
   }
-  async function fetchTodayTop10() {
+  async function fetchTodayTop30() {
     init(); if (!db) return [];
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const { data, error } = await db.from('leaderboard').select('*').gte('created_at', today.toISOString()).order('score', { ascending: true }).limit(10);
+    const { data, error } = await db.from('leaderboard').select('*').gte('created_at', today.toISOString()).order('score', { ascending: true }).limit(30);
     return error ? [] : data;
   }
-  async function isTop10(beesReached) {
+  async function isTop30(beesReached) {
     init(); if (!db) return true;
-    const { data, error } = await db.from('leaderboard').select('score').order('score', { ascending: true }).limit(10);
+    const { data, error } = await db.from('leaderboard').select('score').order('score', { ascending: true }).limit(30);
     if (error || !data) return true;
-    return data.length < 10 || beesReached < data[data.length - 1].score;
+    return data.length < 30 || beesReached < data[data.length - 1].score;
+  }
+  async function getRank(beesReached) {
+    init(); if (!db) return null;
+    const { data, error } = await db.from('leaderboard').select('score').order('score', { ascending: true }).limit(30);
+    if (error || !data) return null;
+    let rank = 1;
+    for (const row of data) { if (beesReached > row.score) rank++; else break; }
+    return rank <= 30 ? rank : null;
   }
   async function submit(name, beesReached, repelled, donuts) {
     init(); if (!db) return null;
@@ -56,7 +63,7 @@ const Leaderboard = (() => {
     const list = document.getElementById('lb-list');
     if (!list) return;
     list.innerHTML = '<div class="lb-loading">読み込み中...</div>';
-    const data = currentTab === 'today' ? await fetchTodayTop10() : await fetchTop10();
+    const data = currentTab === 'today' ? await fetchTodayTop30() : await fetchTop30();
     if (!data || data.length === 0) {
       list.innerHTML = '<div class="lb-loading">まだ記録がありません</div>';
       return;
@@ -76,7 +83,6 @@ const Leaderboard = (() => {
         </div>
         <div class="lb-card-score">
           <span class="lb-card-pts">${perfect ? '🛡️ PERFECT' : '🐝 ' + row.score + '回'}</span>
-          <span class="lb-card-sub">💪${row.wave || 0} 🍩${row.hits || 0}</span>
         </div>
       </div>`;
     }).join('');
@@ -88,9 +94,21 @@ const Leaderboard = (() => {
 
   async function onGameOver(beesReached, beesRepelled, donutsCollected) {
     lastBeesReached = beesReached;
+    // Show rank
+    const rankEl = document.getElementById('result-rank');
+    const rank = await getRank(beesReached);
+    if (rankEl) {
+      if (rank) {
+        rankEl.textContent = '🏆 歴代 ' + rank + ' 位！';
+        rankEl.style.display = 'block';
+      } else {
+        rankEl.style.display = 'none';
+      }
+    }
+    // Show name input if qualified
     const nameInput = document.getElementById('lb-name-input-area');
     if (!nameInput) return;
-    const qualified = await isTop10(beesReached);
+    const qualified = await isTop30(beesReached);
     if (qualified) {
       nameInput.classList.add('visible');
       const input = document.getElementById('lb-name');
@@ -138,5 +156,5 @@ const Leaderboard = (() => {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindEvents);
   else bindEvents();
 
-  return { fetchTop10, fetchTodayTop10, isTop10, submit, showPanel, hidePanel, onGameOver, refreshBoard };
+  return { fetchTop30, fetchTodayTop30, isTop30, submit, showPanel, hidePanel, onGameOver, refreshBoard };
 })();

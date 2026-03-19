@@ -62,6 +62,7 @@ body.game-active{background:var(--sky-blue)!important}
 .result-score-label{display:block;font-family:'Outfit',sans-serif;font-size:.65rem;font-weight:600;color:var(--honey-amber);letter-spacing:.2em;opacity:.7;margin-bottom:.3rem}
 .result-score-value{display:block;font-family:'Outfit',sans-serif;font-size:3.5rem;font-weight:900;color:var(--honey-gold);text-shadow:0 0 20px rgba(255,215,0,.5)}
 .result-score-sub{display:block;font-family:'Outfit',sans-serif;font-size:.7rem;color:rgba(255,248,220,.5);margin-top:.2rem}
+.result-rank{font-family:'Outfit',sans-serif;font-size:1.3rem;font-weight:800;color:#4ade80;text-shadow:0 0 15px rgba(74,222,128,.5);margin:.8rem 0;animation:newRec .6s ease}
 .hud-bees{color:#ff6b6b!important;text-shadow:0 0 10px rgba(255,107,107,.5),0 2px 4px rgba(0,0,0,.5)!important}
 .lb-perfect .lb-card-pts{color:#4ade80!important;text-shadow:0 0 8px rgba(74,222,128,.4)}
 .result-stats{display:flex;gap:1rem;justify-content:center;margin-bottom:1.2rem}

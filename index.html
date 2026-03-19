@@ -72,29 +72,16 @@
           <span class="result-score-value" id="result-score">0</span>
           <span class="result-score-sub">少ないほどすごい！</span>
         </div>
-        <div class="result-stats">
-          <div class="result-stat">
-            <span class="result-stat-icon">💪</span>
-            <span class="result-stat-val" id="result-bees">0</span>
-            <span class="result-stat-lbl">撃退</span>
-          </div>
-          <div class="result-stat">
-            <span class="result-stat-icon">🍩</span>
-            <span class="result-stat-val" id="result-donuts">0</span>
-            <span class="result-stat-lbl">ドーナツ</span>
-          </div>
-          <div class="result-stat">
-            <span class="result-stat-icon">🍯</span>
-            <span class="result-stat-val" id="result-honey">100%</span>
-            <span class="result-stat-lbl">残量</span>
-          </div>
-        </div>
+        <p class="result-rank" id="result-rank" style="display:none"></p>
         <p class="result-new" id="result-new">🎉 NEW RECORD! 🎉</p>
         <p class="result-best">自己ベスト: <span id="result-high">-</span>回</p>
+        <span id="result-bees" style="display:none">0</span>
+        <span id="result-donuts" style="display:none">0</span>
+        <span id="result-honey" style="display:none">0</span>
         <span id="result-time" style="display:none">30s</span>
         <!-- Name Input -->
         <div id="lb-name-input-area">
-          <p class="lb-qualify">🎉 TOP 10 入り！名前を登録</p>
+          <p class="lb-qualify">🎉 TOP 30 入り！名前を登録</p>
           <div class="lb-input-row">
             <input id="lb-name" type="text" maxlength="8" placeholder="なまえ（8文字以内）" autocomplete="off" />
             <button id="lb-submit-btn" class="result-btn lb-submit">登録</button>
