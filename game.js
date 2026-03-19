@@ -727,15 +727,45 @@ function endGame(){
   const ro=document.getElementById('game-result');
   if(ro){
     const el=id=>document.getElementById(id);
-    const rs=el('result-score'),rh=el('result-high'),rn=el('result-new'),rb=el('result-bees'),rd=el('result-donuts'),rt=el('result-time'),rp=el('result-honey');
+    const rs=el('result-score'),rh=el('result-high'),rn=el('result-new'),rb=el('result-bees'),rd=el('result-donuts'),rp=el('result-honey');
     if(rs)rs.textContent=beesReached;
     if(rh)rh.textContent=bestRecord===999?'-':bestRecord;
     if(rn)rn.style.display=isNew?'block':'none';
     if(rb)rb.textContent=beesRepelled;if(rd)rd.textContent=donutsCollected;
-    if(rt)rt.textContent='30s';if(rp)rp.textContent=Math.ceil(honey.hp)+'%';
+    if(rp)rp.textContent=Math.ceil(honey.hp)+'%';
+    // Visual bee parade — one emoji per repelled bee (max 30 shown)
+    const parade=el('result-bee-parade');
+    if(parade){
+      parade.innerHTML='';
+      const shown=Math.min(beesRepelled,30);
+      for(let i=0;i<shown;i++){
+        const span=document.createElement('span');
+        span.textContent='🐝';span.className='parade-bee';
+        span.style.animationDelay=(i*0.06)+'s';
+        parade.appendChild(span);
+      }
+      if(beesRepelled>30){
+        const more=document.createElement('span');
+        more.textContent='+' +(beesRepelled-30);more.className='parade-more';
+        parade.appendChild(more);
+      }
+      if(beesRepelled===0){parade.innerHTML='<span class="parade-none">なし</span>';}
+    }
+    // Visual honey bar
+    const hBar=el('result-honey-bar');
+    const hPct=el('result-honey-pct');
+    const pct=Math.ceil(honey.hp/honey.maxHp*100);
+    if(hBar){hBar.style.width='0%';setTimeout(()=>{hBar.style.width=pct+'%';},200);}
+    if(hPct)hPct.textContent=pct+'%';
+    // Hide buttons initially, show after delay
+    const btns=el('result-buttons');
+    if(btns){btns.style.display='none';setTimeout(()=>{btns.style.display='';btns.style.animation='fadeSlideUp .4s ease forwards';},3000);}
     ro.classList.add('visible');
   }
-  if(typeof Leaderboard!=='undefined')Leaderboard.onGameOver(beesReached,beesRepelled,donutsCollected);
+  // Delay leaderboard call so user sees visual stats first
+  setTimeout(()=>{
+    if(typeof Leaderboard!=='undefined')Leaderboard.onGameOver(beesReached,beesRepelled,donutsCollected);
+  },3500);
 }
 
 // === MAIN LOOP ===

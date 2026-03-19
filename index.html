@@ -75,11 +75,25 @@
         <p class="result-rank" id="result-rank" style="display:none"></p>
         <p class="result-new" id="result-new">🎉 NEW RECORD! 🎉</p>
         <p class="result-best">自己ベスト: <span id="result-high">-</span>回</p>
+        <!-- Visual Stats -->
+        <div class="result-visual" id="result-visual">
+          <div class="result-vis-row">
+            <span class="result-vis-label">💪 撃退</span>
+            <div class="result-bee-parade" id="result-bee-parade"></div>
+          </div>
+          <div class="result-vis-row">
+            <span class="result-vis-label">🍯 残量</span>
+            <div class="result-honey-bar-wrap">
+              <div class="result-honey-bar" id="result-honey-bar"></div>
+              <span class="result-honey-pct" id="result-honey-pct"></span>
+            </div>
+          </div>
+        </div>
         <span id="result-bees" style="display:none">0</span>
         <span id="result-donuts" style="display:none">0</span>
         <span id="result-honey" style="display:none">0</span>
         <span id="result-time" style="display:none">30s</span>
-        <!-- Name Input -->
+        <!-- Name Input (shown after delay) -->
         <div id="lb-name-input-area">
           <p class="lb-qualify">🎉 TOP 30 入り！名前を登録</p>
           <div class="lb-input-row">
@@ -87,7 +101,7 @@
             <button id="lb-submit-btn" class="result-btn lb-submit">登録</button>
           </div>
         </div>
-        <div class="result-buttons">
+        <div class="result-buttons" id="result-buttons" style="display:none">
           <button id="game-replay" class="result-btn">RETRY</button>
           <button id="game-ranking-btn" class="result-btn result-btn-rank">🏆 RANKING</button>
           <button id="game-exit" class="result-btn result-btn-exit">EXIT</button>
