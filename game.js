@@ -5,8 +5,8 @@ const GameEngine=(()=>{'use strict';
 const CFG={
   gameDuration:30,honeyHP:100,playerSpeed:0.18,
   swipeRange:2.8,swipeInterval:280,
-  spawnStart:1200,spawnMin:250,maxBees:30,
-  donutInterval:4500,beeDamage:5,
+  spawnStart:800,spawnMin:150,maxBees:35,
+  donutInterval:5000,beeDamage:5,
 };
 const BS=0.3; // block size — ultra-fine voxels
 const IR=13;  // island radius in blocks
@@ -67,9 +67,9 @@ function initMaterials(){
   MAT.wood=new L({color:0x5a3a18});MAT.woodLight=new L({color:0x7a5430});
   MAT.leaf=new L({color:0x3d8a28,side:THREE.DoubleSide});
   MAT.leafLight=new L({color:0x5aaa3a,side:THREE.DoubleSide});
-  MAT.honeyPot=new L({color:0xd4a017});MAT.honeyPotLight=new L({color:0xe8b830});
-  MAT.honeyLiquid=new P({color:0xFFD700,transparent:true,opacity:0.85,shininess:80});
-  MAT.honeyRim=new L({color:0x8B7B3C});MAT.honeyDrip=new P({color:0xeec900,transparent:true,opacity:0.7});
+  MAT.honeyPot=new L({color:0xFFD700});MAT.honeyPotLight=new L({color:0xFFE44D});
+  MAT.honeyLiquid=new P({color:0xFFE082,transparent:true,opacity:0.9,shininess:90});
+  MAT.honeyRim=new L({color:0xFFC107});MAT.honeyDrip=new P({color:0xFFD54F,transparent:true,opacity:0.75});
   MAT.bear=new L({color:0x8B6914});MAT.bearLight=new L({color:0xa07820});
   MAT.bearBelly=new L({color:0xD2B48C});MAT.bearNose=new L({color:0x222222});
   MAT.bearEye=new L({color:0x111111});MAT.bearEyeW=new L({color:0xffffff});
@@ -450,11 +450,11 @@ function bearSwipe(now){
   const dx=nearest.mesh.position.x-playerGroup.position.x;
   const dz=nearest.mesh.position.z-playerGroup.position.z;
   const d=Math.hypot(dx,dz)||1;
-  nearest.knockVx=(dx/d)*1.0;nearest.knockVz=(dz/d)*1.0;
-  nearest.stunTime=1200;nearest.state='stunned';
-  beesRepelled++;shakeTime=80;updateHUD();SFX.puff();
+  nearest.knockVx=(dx/d)*2.5;nearest.knockVz=(dz/d)*2.5;
+  nearest.stunTime=2000;nearest.state='stunned';
+  beesRepelled++;shakeTime=200;updateHUD();SFX.buzz();
   showScorePopup(nearest.mesh.position,'SWAT!');
-  spawnHitParticles(nearest.mesh.position);
+  spawnHitParticles(nearest.mesh.position);spawnHitParticles(nearest.mesh.position);
   // Bear arm swing
   playerGroup.rotation.y=Math.atan2(dx,dz);
   if(playerGroup._armSwing)clearTimeout(playerGroup._armSwing);
@@ -490,7 +490,7 @@ function spawnBee(){
   const mesh=createBeeModel();mesh.position.set(Math.cos(a)*d,rand(5,8),Math.sin(a)*d);scene.add(mesh);
   beeObjects.push({mesh,speed:rand(0.04,0.08)*sm,phase:rand(0,Math.PI*2),
     knockVx:0,knockVz:0,stunTime:0,targetY:rand(4.5,6.5),
-    state:'approach',circleAngle:a+Math.PI,circleR:rand(4,7),diveDelay:rand(2000,5000),stateStart:performance.now()});
+    state:'approach',circleAngle:a+Math.PI,circleR:rand(4,7),diveDelay:rand(1500,3500),stateStart:performance.now()});
 }
 
 function updateBees(dt,now){
