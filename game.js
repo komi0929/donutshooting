@@ -6,8 +6,7 @@ const CFG={
   gameDuration:30,honeyHP:100,playerSpeed:0.18,
   swipeRange:2.8,swipeInterval:280,
   spawnStart:1200,spawnMin:250,maxBees:30,
-  donutInterval:4500,donutPoints:100,beePoints:10,
-  tapSwipePoints:25,beePenalty:50,beeDamage:5,
+  donutInterval:4500,beeDamage:5,
 };
 const BS=0.3; // block size — ultra-fine voxels
 const IR=13;  // island radius in blocks
@@ -32,8 +31,8 @@ let beeObjects=[],donutObjects=[],particles=[],shockwaves=[];
 let waterFoam=[];
 let player=null,touching=false,tx=0,ty=0;
 let lastSwipe=0,lastSpawn=0,lastDonut=0;
-let honey=null,survTime=0,diff=1,score=0;
-let highScore=parseInt(localStorage.getItem('honey_highscore2')||'0');
+let honey=null,survTime=0,diff=1,beesReached=0;
+let bestRecord=parseInt(localStorage.getItem('honey_best_v3')||'999');
 let raycaster,pointer,groundPlane;
 let palmTrees=[],containerEl,bgIslands=[];
 let beesRepelled=0,donutsCollected=0;
@@ -453,8 +452,8 @@ function bearSwipe(now){
   const d=Math.hypot(dx,dz)||1;
   nearest.knockVx=(dx/d)*1.0;nearest.knockVz=(dz/d)*1.0;
   nearest.stunTime=1200;nearest.state='stunned';
-  score+=CFG.beePoints;beesRepelled++;shakeTime=80;updateHUD();SFX.puff();
-  showScorePopup(nearest.mesh.position,'+'+CFG.beePoints);
+  beesRepelled++;shakeTime=80;updateHUD();SFX.puff();
+  showScorePopup(nearest.mesh.position,'SWAT!');
   spawnHitParticles(nearest.mesh.position);
   // Bear arm swing
   playerGroup.rotation.y=Math.atan2(dx,dz);
@@ -554,8 +553,8 @@ function updateDonuts(dt,now){
   for(let i=donutObjects.length-1;i>=0;i--){const d=donutObjects[i];
     d.mesh.rotation.y+=0.025*dt*60;d.mesh.position.y=(d.baseY||6)+Math.sin(now/500+i)*0.3;
     if(playerGroup){const dx=d.mesh.position.x-playerGroup.position.x,dz=d.mesh.position.z-playerGroup.position.z;
-      if(Math.hypot(dx,dz)<1.5){score+=CFG.donutPoints;donutsCollected++;updateHUD();SFX.pickup();
-        showScorePopup(d.mesh.position,'+'+CFG.donutPoints);
+      if(Math.hypot(dx,dz)<1.5){donutsCollected++;updateHUD();SFX.pickup();
+        showScorePopup(d.mesh.position,'🍩 WAVE!');
         spawnShockwave(playerGroup.position.x,playerGroup.position.z);
         scene.remove(d.mesh);donutObjects.splice(i,1);continue;}}
     if(now-d.born>d.life){scene.remove(d.mesh);donutObjects.splice(i,1);}
@@ -587,7 +586,7 @@ function updateShockwaves(dt){
       const d=Math.hypot(dx,dz);
       if(d<r+1.5&&d>r-2){
         const dd=d||1;b.knockVx=(dx/dd)*0.7;b.knockVz=(dz/dd)*0.7;
-        b.stunTime=1000;b.state='stunned';score+=5;beesRepelled++;
+        b.stunTime=1000;b.state='stunned';beesRepelled++;
       }
     }
     if(sw.life<=0){scene.remove(sw.mesh);sw.mesh.geometry.dispose();sw.mesh.material.dispose();shockwaves.splice(i,1);}
@@ -598,9 +597,9 @@ function checkCollisions(now){
   // Bees reach honey pot
   for(let i=beeObjects.length-1;i>=0;i--){const b=beeObjects[i];if(b.stunTime>0||b.state==='stunned')continue;
     if(Math.hypot(b.mesh.position.x,b.mesh.position.z)<1.8&&b.mesh.position.y<surfaceY(0,0)+3){
-      score=Math.max(0,score-CFG.beePenalty);honey.hp=Math.max(0,honey.hp-CFG.beeDamage);
+      beesReached++;honey.hp=Math.max(0,honey.hp-CFG.beeDamage);
       shakeTime=300;updateHUD();SFX.steal();showDamageFlash();
-      showScorePopup(b.mesh.position,'-'+CFG.beePenalty);
+      showScorePopup(b.mesh.position,'🐝 +1');
       scene.remove(b.mesh);beeObjects.splice(i,1);}}
   // Remove far bees
   for(let i=beeObjects.length-1;i>=0;i--){if(Math.hypot(beeObjects[i].mesh.position.x,beeObjects[i].mesh.position.z)>35){scene.remove(beeObjects[i].mesh);beeObjects.splice(i,1);}}
@@ -610,7 +609,8 @@ function checkCollisions(now){
 function updateHUD(){
   const s=document.getElementById('hud-score'),t=document.getElementById('hud-time'),tb=document.getElementById('hud-timer-bar');
   const remaining=Math.max(0,CFG.gameDuration-survTime);
-  if(s)s.textContent=score;if(t)t.textContent=Math.ceil(remaining)+'s';
+  if(s)s.textContent=beesReached;
+  if(t)t.textContent=Math.ceil(remaining)+'s';
   if(tb)tb.style.width=(remaining/CFG.gameDuration*100)+'%';
   const hp=document.getElementById('hud-honey');
   if(hp&&honey)hp.style.width=(honey.hp/honey.maxHp*100)+'%';
@@ -640,17 +640,19 @@ function updateCamera(time){
 // === GAME OVER ===
 function endGame(){
   active=false;cancelAnimationFrame(af);
-  const isNew=score>highScore;if(isNew){highScore=score;localStorage.setItem('honey_highscore2',String(highScore));}
+  const isNew=beesReached<bestRecord;if(isNew){bestRecord=beesReached;localStorage.setItem('honey_best_v3',String(bestRecord));}
   const ro=document.getElementById('game-result');
   if(ro){
     const el=id=>document.getElementById(id);
     const rs=el('result-score'),rh=el('result-high'),rn=el('result-new'),rb=el('result-bees'),rd=el('result-donuts'),rt=el('result-time'),rp=el('result-honey');
-    if(rs)rs.textContent=score;if(rh)rh.textContent=highScore;if(rn)rn.style.display=isNew?'block':'none';
+    if(rs)rs.textContent=beesReached;
+    if(rh)rh.textContent=bestRecord===999?'-':bestRecord;
+    if(rn)rn.style.display=isNew?'block':'none';
     if(rb)rb.textContent=beesRepelled;if(rd)rd.textContent=donutsCollected;
     if(rt)rt.textContent='30s';if(rp)rp.textContent=Math.ceil(honey.hp)+'%';
     ro.classList.add('visible');
   }
-  if(typeof Leaderboard!=='undefined')Leaderboard.onGameOver(score,beesRepelled,donutsCollected);
+  if(typeof Leaderboard!=='undefined')Leaderboard.onGameOver(beesReached,beesRepelled,donutsCollected);
 }
 
 // === MAIN LOOP ===
@@ -667,7 +669,7 @@ function loop(){
 // === START/STOP ===
 function start(container){
   cleanup();initScene(container);createOcean();createIsland();createBackgroundIslands();createPalmTrees();createHoneyPot();createPlayerModel();
-  active=true;lastSwipe=0;lastSpawn=0;lastDonut=0;survTime=0;diff=1;score=0;beesRepelled=0;donutsCollected=0;shakeTime=0;
+  active=true;lastSwipe=0;lastSpawn=0;lastDonut=0;survTime=0;diff=1;beesReached=0;beesRepelled=0;donutsCollected=0;shakeTime=0;
   honey={hp:CFG.honeyHP,maxHp:CFG.honeyHP};player={alive:true};tx=-1.5;ty=1;touching=false;
   renderer.domElement.addEventListener('pointerdown',onPD,{passive:false});renderer.domElement.addEventListener('pointermove',onPM,{passive:false});
   renderer.domElement.addEventListener('pointerup',onPU);renderer.domElement.addEventListener('pointercancel',onPU);

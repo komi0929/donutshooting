@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=10" />
+    <link rel="stylesheet" href="style.css?v=11" />
   </head>
   <body>
     <div id="game-container"></div>
@@ -44,8 +44,8 @@
     <div id="game-hud">
       <div class="hud-top">
         <div class="hud-score-box">
-          <span class="hud-label">SCORE</span>
-          <span class="hud-value" id="hud-score">0</span>
+          <span class="hud-label">🐝到達</span>
+          <span class="hud-value hud-bees" id="hud-score">0</span>
         </div>
         <div class="hud-time-box">
           <span class="hud-label">⏰ TIME</span>
@@ -69,28 +69,29 @@
       <div class="result-inner">
         <p class="result-title">TIME UP!</p>
         <div class="result-score-main">
-          <span class="result-score-label">SCORE</span>
+          <span class="result-score-label">🐝 到達回数</span>
           <span class="result-score-value" id="result-score">0</span>
+          <span class="result-score-sub">少ないほどすごい！</span>
         </div>
         <div class="result-stats">
           <div class="result-stat">
-            <span class="result-stat-icon">🐝</span>
+            <span class="result-stat-icon">💪</span>
             <span class="result-stat-val" id="result-bees">0</span>
-            <span class="result-stat-lbl">repelled</span>
+            <span class="result-stat-lbl">撃退</span>
           </div>
           <div class="result-stat">
             <span class="result-stat-icon">🍩</span>
             <span class="result-stat-val" id="result-donuts">0</span>
-            <span class="result-stat-lbl">collected</span>
+            <span class="result-stat-lbl">ドーナツ</span>
           </div>
           <div class="result-stat">
             <span class="result-stat-icon">🍯</span>
             <span class="result-stat-val" id="result-honey">100%</span>
-            <span class="result-stat-lbl">remaining</span>
+            <span class="result-stat-lbl">残量</span>
           </div>
         </div>
-        <p class="result-new" id="result-new">🍯 NEW RECORD! 🍯</p>
-        <p class="result-best">BEST: <span id="result-high">0</span></p>
+        <p class="result-new" id="result-new">🎉 NEW RECORD! 🎉</p>
+        <p class="result-best">自己ベスト: <span id="result-high">-</span>回</p>
         <span id="result-time" style="display:none">30s</span>
         <!-- Name Input -->
         <div id="lb-name-input-area">
@@ -128,9 +129,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="game.js?v=10"></script>
-    <script src="leaderboard.js?v=10"></script>
-    <script src="app.js?v=10"></script>
+    <script src="game.js?v=11"></script>
+    <script src="leaderboard.js?v=11"></script>
+    <script src="app.js?v=11"></script>
     <script>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(r => r.forEach(x => x.unregister()));

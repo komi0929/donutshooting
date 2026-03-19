@@ -1,12 +1,12 @@
 /* ======================================
-   Honey Island Defense — Leaderboard v2
-   30s game, score-based ranking
+   Honey Island Defense — Leaderboard v3
+   beesReached (lower=better) ranking
    ====================================== */
 const Leaderboard = (() => {
   'use strict';
   const SUPABASE_URL = 'https://mounixlvppmueddrdbxc.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdW5peGx2cHBtdWVkZHJkYnhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NjE0MzMsImV4cCI6MjA4OTAzNzQzM30.Q8m649yPOJzgHqofe89NJ9199fj0FNieST5uvaJbRIQ';
-  let db = null, currentTab = 'alltime', lastScore = 0;
+  let db = null, currentTab = 'alltime', lastBeesReached = 999;
 
   function init() {
     if (db) return;
@@ -14,26 +14,27 @@ const Leaderboard = (() => {
     db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   }
 
+  // Sort ascending: fewer bees reached = better
   async function fetchTop10() {
     init(); if (!db) return [];
-    const { data, error } = await db.from('leaderboard').select('*').order('score', { ascending: false }).limit(10);
+    const { data, error } = await db.from('leaderboard').select('*').order('score', { ascending: true }).limit(10);
     return error ? [] : data;
   }
   async function fetchTodayTop10() {
     init(); if (!db) return [];
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const { data, error } = await db.from('leaderboard').select('*').gte('created_at', today.toISOString()).order('score', { ascending: false }).limit(10);
+    const { data, error } = await db.from('leaderboard').select('*').gte('created_at', today.toISOString()).order('score', { ascending: true }).limit(10);
     return error ? [] : data;
   }
-  async function isTop10(score) {
+  async function isTop10(beesReached) {
     init(); if (!db) return true;
-    const { data, error } = await db.from('leaderboard').select('score').order('score', { ascending: false }).limit(10);
+    const { data, error } = await db.from('leaderboard').select('score').order('score', { ascending: true }).limit(10);
     if (error || !data) return true;
-    return data.length < 10 || score > data[data.length - 1].score;
+    return data.length < 10 || beesReached < data[data.length - 1].score;
   }
-  async function submit(name, score, wave, hits) {
+  async function submit(name, beesReached, repelled, donuts) {
     init(); if (!db) return null;
-    const { data, error } = await db.from('leaderboard').insert([{ name, score, wave, hits }]).select();
+    const { data, error } = await db.from('leaderboard').insert([{ name, score: beesReached, wave: repelled, hits: donuts }]).select();
     return error ? null : data;
   }
 
@@ -63,18 +64,19 @@ const Leaderboard = (() => {
     const medals = ['🥇', '🥈', '🥉'];
     list.innerHTML = data.map((row, i) => {
       const rank = i < 3 ? medals[i] : `${i + 1}`;
-      const isMe = row.score === lastScore;
+      const isMe = row.score === lastBeesReached;
       const date = new Date(row.created_at);
       const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
-      return `<div class="lb-card${isMe ? ' lb-me' : ''}${i < 3 ? ' lb-top' : ''}">
+      const perfect = row.score === 0;
+      return `<div class="lb-card${isMe ? ' lb-me' : ''}${i < 3 ? ' lb-top' : ''}${perfect ? ' lb-perfect' : ''}">
         <span class="lb-card-rank${i < 3 ? ` lb-rank-${i + 1}` : ''}">${rank}</span>
         <div class="lb-card-info">
           <span class="lb-card-name">${escapeHtml(row.name)}</span>
           <span class="lb-card-date">${dateStr}</span>
         </div>
         <div class="lb-card-score">
-          <span class="lb-card-pts">${row.score}</span>
-          <span class="lb-card-sub">🐝${row.wave || 0} 🍩${row.hits || 0}</span>
+          <span class="lb-card-pts">${perfect ? '🛡️ PERFECT' : '🐝 ' + row.score + '回'}</span>
+          <span class="lb-card-sub">💪${row.wave || 0} 🍩${row.hits || 0}</span>
         </div>
       </div>`;
     }).join('');
@@ -84,12 +86,12 @@ const Leaderboard = (() => {
     const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
   }
 
-  async function onGameOver(score, beesRepelled, donutsCollected) {
-    lastScore = score;
+  async function onGameOver(beesReached, beesRepelled, donutsCollected) {
+    lastBeesReached = beesReached;
     const nameInput = document.getElementById('lb-name-input-area');
     if (!nameInput) return;
-    const qualified = await isTop10(score);
-    if (qualified && score > 0) {
+    const qualified = await isTop10(beesReached);
+    if (qualified) {
       nameInput.classList.add('visible');
       const input = document.getElementById('lb-name');
       if (input) { input.value = ''; input.focus(); }
@@ -112,11 +114,10 @@ const Leaderboard = (() => {
     const scoreEl = document.getElementById('result-score');
     const beesEl = document.getElementById('result-bees');
     const donutsEl = document.getElementById('result-donuts');
-    const score = parseInt(scoreEl?.textContent || '0', 10);
-    const bees = parseInt(beesEl?.textContent || '0', 10);
+    const beesReached = parseInt(scoreEl?.textContent || '0', 10);
+    const repelled = parseInt(beesEl?.textContent || '0', 10);
     const donuts = parseInt(donutsEl?.textContent || '0', 10);
-    // wave = bees repelled, hits = donuts collected
-    await submit(name, score, bees, donuts);
+    await submit(name, beesReached, repelled, donuts);
     btn.textContent = '登録完了！';
     const nameArea = document.getElementById('lb-name-input-area');
     if (nameArea) setTimeout(() => { nameArea.classList.remove('visible'); showPanel(); }, 600);
