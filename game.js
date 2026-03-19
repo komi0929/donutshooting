@@ -37,6 +37,7 @@ let raycaster,pointer,groundPlane;
 let palmTrees=[],containerEl,bgIslands=[];
 let beesRepelled=0,donutsCollected=0;
 let shakeTime=0;
+let queenTimes=[8,18,26],queenIdx=0;
 
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clp=(v,l,h)=>v<l?l:v>h?h:v;
@@ -309,6 +310,36 @@ function createBeeModel(){
   g.scale.set(0.8,0.8,0.8);return g;
 }
 
+// === QUEEN BEE ===
+function createQueenBeeModel(){
+  const g=new THREE.Group();
+  const bp=(w,h,d,m,x,y,z)=>{const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set(x,y,z);return mesh;};
+  const queenBody=new THREE.MeshLambertMaterial({color:0xCC2222});
+  const queenGold=new THREE.MeshLambertMaterial({color:0xFFD700});
+  g.add(bp(0.55,0.5,0.6,queenBody,0,0,-0.2));
+  for(let i=-1;i<=1;i++)g.add(bp(0.57,0.1,0.62,queenGold,0,i*0.14,-0.2));
+  g.add(bp(0.42,0.42,0.36,queenBody,0,0.05,0.2));
+  g.add(bp(0.36,0.36,0.34,queenBody,0,0.08,0.45));
+  [[-0.14,0.16,0.62],[0.14,0.16,0.62]].forEach(p=>{
+    g.add(bp(0.14,0.14,0.07,MAT.beeEyeW,p[0],p[1],p[2]));
+    g.add(bp(0.08,0.08,0.05,MAT.beeEye,p[0],p[1]+0.01,p[2]+0.03));
+  });
+  const wG=new THREE.BoxGeometry(0.7,0.05,0.45);
+  ['wingL1','wingR1','wingL2','wingR2'].forEach((n,i)=>{
+    const w=new THREE.Mesh(wG,MAT.beeWing);
+    const side=i%2===0?-1:1;const row=i<2?0:1;
+    w.position.set(side*0.45,0.3-row*0.1,0.1-row*0.15);
+    w.rotation.z=side*0.3;w.name=n;g.add(w);
+  });
+  g.add(bp(0.1,0.1,0.25,queenGold,0,-0.06,-0.6));
+  // Crown!
+  const crownM=new THREE.MeshLambertMaterial({color:0xFFD700});
+  g.add(bp(0.4,0.12,0.35,crownM,0,0.38,0.35));
+  [[-0.12,0.5,0.35],[0,0.55,0.35],[0.12,0.5,0.35]].forEach(p=>g.add(bp(0.08,0.14,0.08,crownM,p[0],p[1],p[2])));
+  [[-0.06,0.58,0.35],[0.06,0.58,0.35]].forEach(p=>g.add(bp(0.05,0.05,0.05,queenBody,p[0],p[1],p[2])));
+  g.scale.set(1.5,1.5,1.5);return g;
+}
+
 // === DONUT ===
 function createDonutModel(){
   const g=new THREE.Group();
@@ -450,12 +481,24 @@ function bearSwipe(now){
   const dz=nearest.mesh.position.z-playerGroup.position.z;
   const d=Math.hypot(dx,dz)||1;
   // Dramatic knockback — HIGH and FAR
-  nearest.knockVx=(dx/d)*3.0;nearest.knockVz=(dz/d)*3.0;
-  nearest.knockUp=0.6; // strong upward launch
-  nearest.stunTime=2500;nearest.state='stunned';
-  beesRepelled++;shakeTime=200;updateHUD();SFX.buzz();
-  showScorePopup(nearest.mesh.position,'SWAT!');
-  spawnHitParticles(nearest.mesh.position,8);
+  const isQ=nearest.isQueen&&nearest.hp>1;
+  if(isQ){
+    // Queen not dead yet — weaker knockback, reduce HP
+    nearest.hp--;
+    nearest.knockVx=(dx/d)*1.0;nearest.knockVz=(dz/d)*1.0;
+    nearest.knockUp=0.2;nearest.stunTime=600;nearest.state='stunned';
+    beesRepelled++;shakeTime=120;updateHUD();SFX.buzz();
+    showScorePopup(nearest.mesh.position,'HP:'+nearest.hp);
+    spawnHitParticles(nearest.mesh.position,4);
+  } else {
+    // Normal bee or queen final hit — full knockback
+    nearest.knockVx=(dx/d)*3.0;nearest.knockVz=(dz/d)*3.0;
+    nearest.knockUp=0.6;nearest.stunTime=2500;nearest.state='stunned';
+    nearest.hp=0;
+    beesRepelled++;shakeTime=200;updateHUD();SFX.buzz();
+    showScorePopup(nearest.mesh.position,nearest.isQueen?'👑 DEFEAT!':'SWAT!');
+    spawnHitParticles(nearest.mesh.position,nearest.isQueen?12:8);
+  }
   // Bear faces target and lunges
   playerGroup.rotation.y=Math.atan2(dx,dz);
   const origX=playerGroup.position.x,origZ=playerGroup.position.z;
@@ -509,7 +552,24 @@ function spawnBee(){
   const mesh=createBeeModel();mesh.position.set(Math.cos(a)*d,rand(5,8),Math.sin(a)*d);scene.add(mesh);
   beeObjects.push({mesh,speed:rand(0.04,0.08)*sm,phase:rand(0,Math.PI*2),
     knockVx:0,knockVz:0,stunTime:0,targetY:rand(4.5,6.5),
-    state:'approach',circleAngle:a+Math.PI,circleR:rand(4,7),diveDelay:rand(1500,3500),stateStart:performance.now()});
+    state:'approach',circleAngle:a+Math.PI,circleR:rand(4,7),diveDelay:rand(1500,3500),stateStart:performance.now(),
+    hp:1,isQueen:false});
+}
+function spawnQueen(){
+  const a=rand(0,Math.PI*2),d=rand(14,18);
+  const mesh=createQueenBeeModel();mesh.position.set(Math.cos(a)*d,rand(6,9),Math.sin(a)*d);scene.add(mesh);
+  beeObjects.push({mesh,speed:rand(0.06,0.09),phase:rand(0,Math.PI*2),
+    knockVx:0,knockVz:0,stunTime:0,targetY:rand(5,7),
+    state:'approach',circleAngle:a+Math.PI,circleR:rand(3,5),diveDelay:rand(1000,2000),stateStart:performance.now(),
+    hp:3,isQueen:true});
+  // Warning!
+  showQueenWarning();
+  shakeTime=300;SFX.steal();
+}
+function showQueenWarning(){
+  const el=document.createElement('div');el.className='queen-warning';
+  el.textContent='⚠️ 女王バチ出現！';
+  document.body.appendChild(el);setTimeout(()=>el.remove(),2000);
 }
 
 function updateBees(dt,now){
@@ -618,7 +678,7 @@ function checkCollisions(now){
   // Bees reach honey pot
   for(let i=beeObjects.length-1;i>=0;i--){const b=beeObjects[i];if(b.stunTime>0||b.state==='stunned')continue;
     if(Math.hypot(b.mesh.position.x,b.mesh.position.z)<1.8&&b.mesh.position.y<surfaceY(0,0)+3){
-      beesReached++;honey.hp=Math.max(0,honey.hp-CFG.beeDamage);
+      beesReached+=(b.isQueen?3:1);honey.hp=Math.max(0,honey.hp-CFG.beeDamage*(b.isQueen?3:1));
       shakeTime=300;updateHUD();SFX.steal();showDamageFlash();
       showScorePopup(b.mesh.position,'🐝 +1');
       scene.remove(b.mesh);beeObjects.splice(i,1);}}
@@ -645,6 +705,8 @@ function updateDiff(dt,now){
   const spawnInt=Math.max(CFG.spawnMin,CFG.spawnStart-diff*180);
   if(now-lastSpawn>spawnInt&&beeObjects.length<CFG.maxBees){spawnBee();lastSpawn=now;if(diff>=2&&Math.random()<0.4)spawnBee();if(diff>=4&&Math.random()<0.35)spawnBee();}
   if(now-lastDonut>CFG.donutInterval){spawnDonut();lastDonut=now;}
+  // Queen bee spawns
+  if(queenIdx<queenTimes.length&&survTime>=queenTimes[queenIdx]){spawnQueen();queenIdx++;}
   updateHUD();
 }
 
@@ -690,7 +752,7 @@ function loop(){
 // === START/STOP ===
 function start(container){
   cleanup();initScene(container);createOcean();createIsland();createBackgroundIslands();createPalmTrees();createHoneyPot();createPlayerModel();
-  active=true;lastSwipe=0;lastSpawn=0;lastDonut=0;survTime=0;diff=1;beesReached=0;beesRepelled=0;donutsCollected=0;shakeTime=0;
+  active=true;lastSwipe=0;lastSpawn=0;lastDonut=0;survTime=0;diff=1;beesReached=0;beesRepelled=0;donutsCollected=0;shakeTime=0;queenIdx=0;
   honey={hp:CFG.honeyHP,maxHp:CFG.honeyHP};player={alive:true};tx=-1.5;ty=1;touching=false;
   renderer.domElement.addEventListener('pointerdown',onPD,{passive:false});renderer.domElement.addEventListener('pointermove',onPM,{passive:false});
   renderer.domElement.addEventListener('pointerup',onPU);renderer.domElement.addEventListener('pointercancel',onPU);
