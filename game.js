@@ -9,8 +9,8 @@ const CFG={
   donutInterval:4500,donutPoints:100,beePoints:10,
   tapSwipePoints:25,beePenalty:50,beeDamage:5,
 };
-const BS=0.5; // block size — fine voxels
-const IR=9;   // island radius in blocks
+const BS=0.3; // block size — ultra-fine voxels
+const IR=13;  // island radius in blocks
 
 // SFX
 const SFX=(()=>{let ac=null,m=null;
@@ -21,14 +21,15 @@ function buzz(){if(!e())return;const t=ac.currentTime,o=ac.createOscillator();o.
 function steal(){if(!e())return;const t=ac.currentTime,o=ac.createOscillator();o.type='triangle';o.frequency.setValueAtTime(600,t);o.frequency.exponentialRampToValueAtTime(200,t+.3);const gn=g(.12);gn.gain.exponentialRampToValueAtTime(.001,t+.35);o.connect(gn);o.start(t);o.stop(t+.35)}
 function pickup(){if(!e())return;const t=ac.currentTime;[523,659,784].forEach((f,i)=>{const o=ac.createOscillator();o.type='sine';o.frequency.value=f;const gn=g(.1);gn.gain.setValueAtTime(.001,t+i*.08);gn.gain.linearRampToValueAtTime(.1,t+i*.08+.03);gn.gain.exponentialRampToValueAtTime(.001,t+i*.08+.15);o.connect(gn);o.start(t+i*.08);o.stop(t+i*.08+.2)})}
 function gameOver(){if(!e())return;const t=ac.currentTime;[523,659,784,1047].forEach((f,i)=>{const o=ac.createOscillator();o.type='sine';o.frequency.value=f;const gn=g(.12);gn.gain.setValueAtTime(.001,t+i*.12);gn.gain.linearRampToValueAtTime(.12,t+i*.12+.03);gn.gain.exponentialRampToValueAtTime(.001,t+i*.12+.4);o.connect(gn);o.start(t+i*.12);o.stop(t+i*.12+.45)})}
-return{puff,buzz,steal,pickup,gameOver}})();
+function whoosh(){if(!e())return;const t=ac.currentTime,b=ac.createBuffer(1,ac.sampleRate*.25,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++){const p=i/d.length;d[i]=(Math.random()*2-1)*Math.max(0,(1-p))*0.4;}const s=ac.createBufferSource();s.buffer=b;const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.setValueAtTime(2000,t);f.frequency.exponentialRampToValueAtTime(200,t+.25);const gn=g(.15);s.connect(f);f.connect(gn);gn.gain.exponentialRampToValueAtTime(.001,t+.25);s.start(t)}
+return{puff,buzz,steal,pickup,gameOver,whoosh}})();
 
 // STATE
 let active=false,af;
 let scene,camera,renderer,clock;
 let islandGroup,honeyMesh,playerGroup,oceanMesh;
-let beeObjects=[],donutObjects=[],particles=[];
-let clouds=[],waterFoam=[];
+let beeObjects=[],donutObjects=[],particles=[],shockwaves=[];
+let waterFoam=[];
 let player=null,touching=false,tx=0,ty=0;
 let lastSwipe=0,lastSpawn=0,lastDonut=0;
 let honey=null,survTime=0,diff=1,score=0;
@@ -98,7 +99,7 @@ function createIsland(){
       const h=heightAt(bx,bz);
       if(h<-4)continue;
       const wx=bx*BS,wz=bz*BS,d=Math.sqrt(wx*wx+wz*wz);
-      const depth=Math.max(2,Math.min(4,Math.floor((4.5-d*0.5)/BS)));
+      const depth=Math.max(2,Math.min(3,Math.floor((4-d*0.5)/BS)));
       const minY=h-depth;
       for(let by=minY;by<=h;by++){
         let mat;
@@ -127,14 +128,32 @@ function createIsland(){
   // Flowers
   const flG=new THREE.BoxGeometry(BS*0.5,BS*0.5,BS*0.5);
   const fMats=[MAT.flower1,MAT.flower2,MAT.flower3,MAT.flowerW];
-  for(let i=0;i<10;i++){
-    const a=rand(0,Math.PI*2),d=rand(0.5,2.5);
+  for(let i=0;i<15;i++){
+    const a=rand(0,Math.PI*2),d=rand(0.5,3);
     const fx=Math.cos(a)*d,fz=Math.sin(a)*d,sy=surfaceY(fx,fz);
     if(sy<1)continue;
     const fl=new THREE.Mesh(flG,fMats[Math.floor(Math.random()*fMats.length)]);
     fl.position.set(fx,sy+BS*0.2,fz);islandGroup.add(fl);
     const stem=new THREE.Mesh(new THREE.BoxGeometry(0.04,BS*0.8,0.04),MAT.grassDark);
     stem.position.set(fx,sy,fz);islandGroup.add(stem);
+  }
+  // Small bushes
+  const bushG=new THREE.SphereGeometry(0.2,6,6);
+  for(let i=0;i<8;i++){
+    const a=rand(0,Math.PI*2),d=rand(0.8,2.8);
+    const bx2=Math.cos(a)*d,bz2=Math.sin(a)*d,sy=surfaceY(bx2,bz2);
+    if(sy<1)continue;
+    const bush=new THREE.Mesh(bushG,Math.random()>0.5?MAT.grassDark:MAT.leaf);
+    bush.position.set(bx2,sy+0.15,bz2);bush.scale.set(rand(0.6,1),rand(0.5,0.8),rand(0.6,1));islandGroup.add(bush);
+  }
+  // Surface stones
+  const stoneG=new THREE.BoxGeometry(BS*0.8,BS*0.5,BS*0.8);
+  for(let i=0;i<6;i++){
+    const a=rand(0,Math.PI*2),d=rand(1,3.2);
+    const sx=Math.cos(a)*d,sz=Math.sin(a)*d,sy=surfaceY(sx,sz);
+    if(sy<0.5)continue;
+    const st=new THREE.Mesh(stoneG,Math.random()>0.5?MAT.stone:MAT.stoneDark);
+    st.position.set(sx,sy+BS*0.1,sz);st.rotation.y=rand(0,Math.PI);islandGroup.add(st);
   }
   scene.add(islandGroup);
 }
@@ -537,6 +556,7 @@ function updateDonuts(dt,now){
     if(playerGroup){const dx=d.mesh.position.x-playerGroup.position.x,dz=d.mesh.position.z-playerGroup.position.z;
       if(Math.hypot(dx,dz)<1.5){score+=CFG.donutPoints;donutsCollected++;updateHUD();SFX.pickup();
         showScorePopup(d.mesh.position,'+'+CFG.donutPoints);
+        spawnShockwave(playerGroup.position.x,playerGroup.position.z);
         scene.remove(d.mesh);donutObjects.splice(i,1);continue;}}
     if(now-d.born>d.life){scene.remove(d.mesh);donutObjects.splice(i,1);}
   }
@@ -545,6 +565,33 @@ function updateDonuts(dt,now){
 function updateParticles(dt){
   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.scale+=0.25*dt*60;p.life-=0.04*dt*60;p.mesh.scale.set(p.scale,p.scale,p.scale);p.mesh.material.opacity=p.life*0.5;
     if(p.life<=0){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();particles.splice(i,1);}}
+}
+
+// === DONUT SHOCKWAVE ===
+function spawnShockwave(x,z){
+  const ringGeo=new THREE.RingGeometry(0.3,0.8,32);
+  const ringMat=new THREE.MeshBasicMaterial({color:0xFFD700,transparent:true,opacity:0.7,side:THREE.DoubleSide});
+  const ring=new THREE.Mesh(ringGeo,ringMat);
+  ring.rotation.x=-Math.PI/2;ring.position.set(x,surfaceY(0,0)+2,z);
+  scene.add(ring);shockwaves.push({mesh:ring,radius:1,life:1,ox:x,oz:z});
+  SFX.whoosh();shakeTime=120;
+}
+function updateShockwaves(dt){
+  for(let i=shockwaves.length-1;i>=0;i--){
+    const sw=shockwaves[i];sw.radius+=0.5*dt*60;sw.life-=0.025*dt*60;
+    sw.mesh.scale.set(sw.radius,sw.radius,1);sw.mesh.material.opacity=sw.life*0.6;
+    const r=sw.radius*1.5;
+    for(const b of beeObjects){
+      if(b.stunTime>0)continue;
+      const dx=b.mesh.position.x-sw.ox,dz=b.mesh.position.z-sw.oz;
+      const d=Math.hypot(dx,dz);
+      if(d<r+1.5&&d>r-2){
+        const dd=d||1;b.knockVx=(dx/dd)*0.7;b.knockVz=(dz/dd)*0.7;
+        b.stunTime=1000;b.state='stunned';score+=5;beesRepelled++;
+      }
+    }
+    if(sw.life<=0){scene.remove(sw.mesh);sw.mesh.geometry.dispose();sw.mesh.material.dispose();shockwaves.splice(i,1);}
+  }
 }
 
 function checkCollisions(now){
@@ -610,17 +657,16 @@ function endGame(){
 function loop(){
   if(!active)return;af=requestAnimationFrame(loop);
   const dt=Math.min(clock.getDelta(),0.05),now=performance.now(),el=clock.elapsedTime;
-  updatePlayer(dt);bearSwipe(now);updateBees(dt,now);updateDonuts(dt,now);checkCollisions(now);updateParticles(dt);updateDiff(dt,now);updateCamera(el);animateOcean(el);
+  updatePlayer(dt);bearSwipe(now);updateBees(dt,now);updateDonuts(dt,now);checkCollisions(now);updateParticles(dt);updateShockwaves(dt);updateDiff(dt,now);updateCamera(el);animateOcean(el);
   if(shakeTime>0)shakeTime=Math.max(0,shakeTime-dt*1000);
   for(const t of palmTrees){t.children.forEach((c,i)=>{if(i>=5)c.rotation.z=0.3+Math.sin(el*1.5+i)*0.1;});}
-  for(const c of clouds){c.position.x=c.userData.baseX+Math.sin(el*c.userData.speed*20)*10;}
   if(honeyMesh){const hy=surfaceY(0,0)+0.05;honeyMesh.position.y=hy+Math.sin(el*1.2)*0.06;}
   renderer.render(scene,camera);
 }
 
 // === START/STOP ===
 function start(container){
-  cleanup();initScene(container);createOcean();createIsland();createBackgroundIslands();createPalmTrees();createHoneyPot();createPlayerModel();createClouds();
+  cleanup();initScene(container);createOcean();createIsland();createBackgroundIslands();createPalmTrees();createHoneyPot();createPlayerModel();
   active=true;lastSwipe=0;lastSpawn=0;lastDonut=0;survTime=0;diff=1;score=0;beesRepelled=0;donutsCollected=0;shakeTime=0;
   honey={hp:CFG.honeyHP,maxHp:CFG.honeyHP};player={alive:true};tx=-1.5;ty=1;touching=false;
   renderer.domElement.addEventListener('pointerdown',onPD,{passive:false});renderer.domElement.addEventListener('pointermove',onPM,{passive:false});
@@ -637,7 +683,7 @@ function cleanup(){
     if(renderer.domElement.parentNode)renderer.domElement.parentNode.removeChild(renderer.domElement);renderer.dispose();renderer=null;}
   if(window._honeyResize)window.removeEventListener('resize',window._honeyResize);
   if(scene){while(scene.children.length>0)scene.remove(scene.children[0]);}
-  beeObjects=[];donutObjects=[];particles=[];clouds=[];waterFoam=[];palmTrees=[];bgIslands=[];
+  beeObjects=[];donutObjects=[];particles=[];shockwaves=[];waterFoam=[];palmTrees=[];bgIslands=[];
   scene=null;camera=null;islandGroup=null;honeyMesh=null;playerGroup=null;oceanMesh=null;
 }
 
