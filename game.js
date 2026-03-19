@@ -446,20 +446,38 @@ function bearSwipe(now){
   }
   if(!nearest)return;
   lastSwipe=now;
-  // Knockback
   const dx=nearest.mesh.position.x-playerGroup.position.x;
   const dz=nearest.mesh.position.z-playerGroup.position.z;
   const d=Math.hypot(dx,dz)||1;
-  nearest.knockVx=(dx/d)*2.5;nearest.knockVz=(dz/d)*2.5;
-  nearest.stunTime=2000;nearest.state='stunned';
+  // Dramatic knockback — HIGH and FAR
+  nearest.knockVx=(dx/d)*3.0;nearest.knockVz=(dz/d)*3.0;
+  nearest.knockUp=0.6; // strong upward launch
+  nearest.stunTime=2500;nearest.state='stunned';
   beesRepelled++;shakeTime=200;updateHUD();SFX.buzz();
   showScorePopup(nearest.mesh.position,'SWAT!');
-  spawnHitParticles(nearest.mesh.position);spawnHitParticles(nearest.mesh.position);
-  // Bear arm swing
+  spawnHitParticles(nearest.mesh.position,8);
+  // Bear faces target and lunges
   playerGroup.rotation.y=Math.atan2(dx,dz);
+  const origX=playerGroup.position.x,origZ=playerGroup.position.z;
+  playerGroup.position.x+=dx/d*0.5;playerGroup.position.z+=dz/d*0.5;
+  // Visible SWIPE ARC — golden half-circle
+  const arcGeo=new THREE.RingGeometry(0.8,1.6,16,1,0,Math.PI);
+  const arcMat=new THREE.MeshBasicMaterial({color:0xFFD700,transparent:true,opacity:0.8,side:THREE.DoubleSide});
+  const arc=new THREE.Mesh(arcGeo,arcMat);
+  const midX=(playerGroup.position.x+nearest.mesh.position.x)/2;
+  const midZ=(playerGroup.position.z+nearest.mesh.position.z)/2;
+  arc.position.set(midX,playerGroup.position.y+1.2,midZ);
+  arc.rotation.y=Math.atan2(dx,dz);
+  arc.rotation.x=Math.PI/6;
+  scene.add(arc);
+  particles.push({mesh:arc,scale:1,life:1,isArc:true});
+  // Arm swing
   if(playerGroup._armSwing)clearTimeout(playerGroup._armSwing);
-  playerGroup.children.forEach(c=>{if(c.position.x>0.7)c.rotation.z=-0.8;});
-  playerGroup._armSwing=setTimeout(()=>{playerGroup.children.forEach(c=>{if(c.position.x>0.7)c.rotation.z=0;});},200);
+  playerGroup.children.forEach(c=>{if(c.position.x>0.7)c.rotation.z=-1.2;});
+  playerGroup._armSwing=setTimeout(()=>{
+    playerGroup.children.forEach(c=>{if(c.position.x>0.7)c.rotation.z=0;});
+    playerGroup.position.x=origX;playerGroup.position.z=origZ;
+  },180);
 }
 
 // === VISUAL FEEDBACK ===
@@ -476,11 +494,12 @@ function showDamageFlash(){
   const el=document.createElement('div');el.className='damage-flash';
   document.body.appendChild(el);setTimeout(()=>el.remove(),400);
 }
-function spawnHitParticles(pos){
-  for(let i=0;i<3;i++){
-    const pg=new THREE.Mesh(new THREE.SphereGeometry(0.15,6,6),MAT.windPuff.clone());
-    pg.position.set(pos.x+rand(-0.3,0.3),pos.y+rand(-0.2,0.3),pos.z+rand(-0.3,0.3));
-    scene.add(pg);particles.push({mesh:pg,scale:0.5,life:1});
+function spawnHitParticles(pos,count){
+  count=count||4;
+  for(let i=0;i<count;i++){
+    const pg=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,6),MAT.windPuff.clone());
+    pg.position.set(pos.x+rand(-0.5,0.5),pos.y+rand(-0.2,0.5),pos.z+rand(-0.5,0.5));
+    scene.add(pg);particles.push({mesh:pg,scale:0.6,life:1});
   }
 }
 
@@ -501,11 +520,13 @@ function updateBees(dt,now){
     if(b.stunTime>0||b.state==='stunned'){
       b.stunTime-=dt*1000;
       b.mesh.position.x+=b.knockVx*dt*60;b.mesh.position.z+=b.knockVz*dt*60;
-      b.mesh.position.y+=0.05*dt*60; // fly upward when hit
-      b.knockVx*=0.9;b.knockVz*=0.9;
-      b.mesh.rotation.z+=0.3*dt*60; // spin!
-      b.mesh.rotation.x+=0.2*dt*60;
-      if(b.stunTime<=0){b.state='approach';b.stateStart=now;b.mesh.rotation.z=0;b.mesh.rotation.x=0;}
+      const up=b.knockUp||0.05;
+      b.mesh.position.y+=up*dt*60;
+      if(b.knockUp)b.knockUp*=0.95; // decay upward thrust
+      b.knockVx*=0.88;b.knockVz*=0.88;
+      b.mesh.rotation.z+=0.5*dt*60; // fast spin!
+      b.mesh.rotation.x+=0.35*dt*60;
+      if(b.stunTime<=0){b.state='approach';b.stateStart=now;b.mesh.rotation.z=0;b.mesh.rotation.x=0;b.knockUp=0;}
       continue;
     }
     b.mesh.rotation.z=0;b.mesh.rotation.x=0;
