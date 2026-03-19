@@ -38,6 +38,8 @@ let palmTrees=[],containerEl,bgIslands=[];
 let beesRepelled=0,donutsCollected=0;
 let shakeTime=0;
 let queenTimes=[8,18,26],queenIdx=0;
+let comboCount=0,lastHitTime=0;
+let warningMarkers=[];
 
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clp=(v,l,h)=>v<l?l:v>h?h:v;
@@ -499,6 +501,13 @@ function bearSwipe(now){
     showScorePopup(nearest.mesh.position,nearest.isQueen?'👑 DEFEAT!':'SWAT!');
     spawnHitParticles(nearest.mesh.position,nearest.isQueen?12:8);
   }
+  // Combo system
+  if(now-lastHitTime<1500){comboCount++;}else{comboCount=1;}
+  lastHitTime=now;
+  if(comboCount>=2){
+    showScorePopup(nearest.mesh.position,'×'+comboCount+' COMBO!');
+    shakeTime=Math.min(400,shakeTime+comboCount*30);
+  }
   // Bear faces target and lunges
   playerGroup.rotation.y=Math.atan2(dx,dz);
   const origX=playerGroup.position.x,origZ=playerGroup.position.z;
@@ -606,7 +615,16 @@ function updateBees(dt,now){
       b.mesh.position.z=Math.sin(b.circleAngle)*b.circleR;
       b.targetY=Math.max(3.5,b.targetY-0.015*dt*60); // descend
       b.mesh.rotation.y=b.circleAngle+Math.PI/2;
-      // After delay, DIVE!
+      // After delay, DIVE! (show warning 500ms before)
+      const timeLeft=b.diveDelay-(now-b.stateStart);
+      if(timeLeft<500&&!b._warned){
+        b._warned=true;
+        const warnGeo=new THREE.BoxGeometry(0.25,0.35,0.05);
+        const warnMat=new THREE.MeshBasicMaterial({color:0xff0000});
+        const warn=new THREE.Mesh(warnGeo,warnMat);
+        warn.position.set(0,0.8,0);b.mesh.add(warn);
+        warningMarkers.push({mesh:warn,parent:b.mesh,life:500});
+      }
       if(now-b.stateStart>b.diveDelay){b.state='dive';b.stateStart=now;}
     }else if(b.state==='dive'){
       // Fast dive toward honey pot!
@@ -619,6 +637,12 @@ function updateBees(dt,now){
       b.mesh.rotation.x=0.3; // nose down
     }
     if(b.state!=='dive')b.mesh.position.y=b.targetY+Math.sin(now/600+b.phase)*0.3;
+  }
+  // Update warning markers
+  for(let i=warningMarkers.length-1;i>=0;i--){
+    const w=warningMarkers[i];w.life-=dt*1000;
+    w.mesh.visible=Math.sin(performance.now()/80)>0; // blink
+    if(w.life<=0){w.parent.remove(w.mesh);w.mesh.geometry.dispose();w.mesh.material.dispose();warningMarkers.splice(i,1);}
   }
 }
 
@@ -761,6 +785,12 @@ function endGame(){
     const btns=el('result-buttons');
     if(btns){btns.style.display='none';setTimeout(()=>{btns.style.display='';btns.style.animation='fadeSlideUp .4s ease forwards';},3000);}
     ro.classList.add('visible');
+    // Perfect celebration
+    if(beesReached===0){
+      const perf=document.createElement('div');perf.className='perfect-celebration';
+      perf.textContent='🛡️ PERFECT DEFENSE!';
+      document.body.appendChild(perf);setTimeout(()=>perf.remove(),3000);
+    }
   }
   // Delay leaderboard call so user sees visual stats first
   setTimeout(()=>{
@@ -782,7 +812,7 @@ function loop(){
 // === START/STOP ===
 function start(container){
   cleanup();initScene(container);createOcean();createIsland();createBackgroundIslands();createPalmTrees();createHoneyPot();createPlayerModel();
-  active=true;lastSwipe=0;lastSpawn=0;lastDonut=0;survTime=0;diff=1;beesReached=0;beesRepelled=0;donutsCollected=0;shakeTime=0;queenIdx=0;
+  active=true;lastSwipe=0;lastSpawn=0;lastDonut=0;survTime=0;diff=1;beesReached=0;beesRepelled=0;donutsCollected=0;shakeTime=0;queenIdx=0;comboCount=0;lastHitTime=0;
   honey={hp:CFG.honeyHP,maxHp:CFG.honeyHP};player={alive:true};tx=-1.5;ty=1;touching=false;
   renderer.domElement.addEventListener('pointerdown',onPD,{passive:false});renderer.domElement.addEventListener('pointermove',onPM,{passive:false});
   renderer.domElement.addEventListener('pointerup',onPU);renderer.domElement.addEventListener('pointercancel',onPU);
@@ -790,7 +820,23 @@ function start(container){
   const na=document.getElementById('lb-name-input-area');if(na)na.classList.remove('visible');
   window._honeyResize=()=>{if(!renderer||!camera)return;const a=containerEl.clientWidth/containerEl.clientHeight;camera.aspect=a;camera.fov=a<1?55:40;camera.updateProjectionMatrix();renderer.setSize(containerEl.clientWidth,containerEl.clientHeight);};
   window.addEventListener('resize',window._honeyResize);
-  updateHUD();clock.start();af=requestAnimationFrame(loop);
+  // 3-2-1 Countdown
+  active=false; // pause game during countdown
+  updateHUD();
+  showCountdown(()=>{active=true;clock.start();af=requestAnimationFrame(loop);});
+}
+function showCountdown(cb){
+  const steps=['3','2','1','GO!'];
+  let i=0;
+  function show(){
+    if(i>=steps.length){cb();return;}
+    const el=document.createElement('div');el.className='countdown-num';
+    el.textContent=steps[i];
+    document.body.appendChild(el);
+    SFX.puff();
+    setTimeout(()=>{el.remove();i++;show();},i<3?800:500);
+  }
+  show();
 }
 
 function cleanup(){
@@ -798,7 +844,7 @@ function cleanup(){
     if(renderer.domElement.parentNode)renderer.domElement.parentNode.removeChild(renderer.domElement);renderer.dispose();renderer=null;}
   if(window._honeyResize)window.removeEventListener('resize',window._honeyResize);
   if(scene){while(scene.children.length>0)scene.remove(scene.children[0]);}
-  beeObjects=[];donutObjects=[];particles=[];shockwaves=[];waterFoam=[];palmTrees=[];bgIslands=[];
+  beeObjects=[];donutObjects=[];particles=[];shockwaves=[];waterFoam=[];palmTrees=[];bgIslands=[];warningMarkers=[];
   scene=null;camera=null;islandGroup=null;honeyMesh=null;playerGroup=null;oceanMesh=null;
 }
 

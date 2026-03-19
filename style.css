@@ -54,6 +54,12 @@ body.game-active #game-hud{display:block}
 /* Queen warning */
 .queen-warning{position:fixed;top:25%;left:50%;transform:translateX(-50%);z-index:200;font-family:'Outfit',sans-serif;font-size:1.6rem;font-weight:900;color:#ff4444;text-shadow:0 0 20px rgba(255,68,68,.8),0 2px 4px rgba(0,0,0,.6);pointer-events:none;animation:queenWarn 2s ease-out forwards;white-space:nowrap}
 @keyframes queenWarn{0%{opacity:0;transform:translateX(-50%) scale(2)}10%{opacity:1;transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-30px)}}
+/* Countdown */
+.countdown-num{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);z-index:250;font-family:'Outfit',sans-serif;font-size:5rem;font-weight:900;color:var(--honey-gold);text-shadow:0 0 40px rgba(255,215,0,.8),0 4px 8px rgba(0,0,0,.5);pointer-events:none;animation:countPop .7s ease forwards}
+@keyframes countPop{0%{opacity:0;transform:translate(-50%,-50%) scale(3)}20%{opacity:1;transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(.5)}}
+/* Perfect celebration */
+.perfect-celebration{position:fixed;top:15%;left:50%;transform:translateX(-50%);z-index:200;font-family:'Outfit',sans-serif;font-size:1.8rem;font-weight:900;color:#4ade80;text-shadow:0 0 30px rgba(74,222,128,.8),0 0 60px rgba(74,222,128,.4),0 3px 6px rgba(0,0,0,.5);pointer-events:none;animation:perfectBounce 3s ease forwards;white-space:nowrap}
+@keyframes perfectBounce{0%{opacity:0;transform:translateX(-50%) scale(0)}10%{opacity:1;transform:translateX(-50%) scale(1.4)}20%{transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-40px)}}
 
 body.game-active{background:var(--sky-blue)!important}
 
