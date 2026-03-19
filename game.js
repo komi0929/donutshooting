@@ -89,17 +89,16 @@ function initMaterials(){
   MAT.bgGrass=new L({color:0x4a9030});MAT.bgDirt=new L({color:0x6a4c20});
 }
 
-// === ISLAND (InstancedMesh, fine blocks) ===
+// === ISLAND (fine blocks, regular Mesh) ===
 function createIsland(){
   islandGroup=new THREE.Group();
   const B=new THREE.BoxGeometry(BS,BS,BS);
-  const buckets=new Map();
   for(let bx=-IR;bx<=IR;bx++){
     for(let bz=-IR;bz<=IR;bz++){
       const h=heightAt(bx,bz);
-      if(h<-6)continue;
+      if(h<-4)continue;
       const wx=bx*BS,wz=bz*BS,d=Math.sqrt(wx*wx+wz*wz);
-      const depth=Math.max(2,Math.min(5,Math.floor((5-d*0.5)/BS)));
+      const depth=Math.max(2,Math.min(4,Math.floor((4.5-d*0.5)/BS)));
       const minY=h-depth;
       for(let by=minY;by<=h;by++){
         let mat;
@@ -107,28 +106,19 @@ function createIsland(){
         else if(by===h&&h>=2) mat=MAT.grass;
         else if(by===h) mat=Math.random()>0.5?MAT.sand:MAT.sandLight;
         else if(by>=h-2&&h>=3) mat=Math.random()>0.5?MAT.grassDark:MAT.dirt;
-        else if(by>=h-4) mat=Math.random()>0.5?MAT.dirt:MAT.dirtDark;
+        else if(by>=h-3) mat=Math.random()>0.5?MAT.dirt:MAT.dirtDark;
         else mat=Math.random()>0.3?MAT.stone:MAT.stoneDark;
-        if(!buckets.has(mat))buckets.set(mat,[]);
-        buckets.get(mat).push(bx*BS,by*BS,bz*BS);
+        const block=new THREE.Mesh(B,mat);
+        block.position.set(bx*BS,by*BS,bz*BS);
+        block.castShadow=true;block.receiveShadow=true;
+        islandGroup.add(block);
       }
     }
   }
-  const dummy=new THREE.Object3D();
-  for(const[mat,coords]of buckets){
-    const count=coords.length/3;
-    const im=new THREE.InstancedMesh(B,mat,count);
-    for(let i=0;i<count;i++){
-      dummy.position.set(coords[i*3],coords[i*3+1],coords[i*3+2]);
-      dummy.updateMatrix();im.setMatrixAt(i,dummy.matrix);
-    }
-    im.instanceMatrix.needsUpdate=true;im.castShadow=true;im.receiveShadow=true;
-    islandGroup.add(im);
-  }
   // Grass tufts
   const tG=new THREE.BoxGeometry(BS*0.3,BS*0.9,BS*0.15);
-  for(let i=0;i<50;i++){
-    const a=rand(0,Math.PI*2),d=rand(0.3,3.5);
+  for(let i=0;i<30;i++){
+    const a=rand(0,Math.PI*2),d=rand(0.3,3);
     const gx=Math.cos(a)*d,gz=Math.sin(a)*d,sy=surfaceY(gx,gz);
     if(sy<0.5)continue;
     const t=new THREE.Mesh(tG,Math.random()>0.5?MAT.grassDark:MAT.leaf);
@@ -137,8 +127,8 @@ function createIsland(){
   // Flowers
   const flG=new THREE.BoxGeometry(BS*0.5,BS*0.5,BS*0.5);
   const fMats=[MAT.flower1,MAT.flower2,MAT.flower3,MAT.flowerW];
-  for(let i=0;i<12;i++){
-    const a=rand(0,Math.PI*2),d=rand(0.5,2.8);
+  for(let i=0;i<10;i++){
+    const a=rand(0,Math.PI*2),d=rand(0.5,2.5);
     const fx=Math.cos(a)*d,fz=Math.sin(a)*d,sy=surfaceY(fx,fz);
     if(sy<1)continue;
     const fl=new THREE.Mesh(flG,fMats[Math.floor(Math.random()*fMats.length)]);
@@ -159,7 +149,9 @@ function createBackgroundIslands(){
       const d=Math.sqrt(x*x+z*z);if(d>2.3)continue;
       const h=Math.floor(mh-d*0.8);
       for(let y=-1;y<=h;y++){
-        ig.add(Object.assign(new THREE.Mesh(bB,y===h?MAT.bgGrass:y>0?MAT.bgDirt:MAT.stone),{position:new THREE.Vector3(x*0.7,y*0.7,z*0.7)}));
+        const b=new THREE.Mesh(bB,y===h?MAT.bgGrass:y>0?MAT.bgDirt:MAT.stone);
+        b.position.set(x*0.7,y*0.7,z*0.7);
+        ig.add(b);
       }
     }}
     ig.position.set(px,py,pz);scene.add(ig);bgIslands.push(ig);
@@ -225,17 +217,17 @@ function createHoneyPot(){
   const eyeG=new THREE.BoxGeometry(0.13,0.17,0.07);
   const eyeWG=new THREE.BoxGeometry(0.06,0.06,0.04);
   [[-0.24,1.15,0.78],[0.24,1.15,0.78]].forEach(p=>{
-    g.add(Object.assign(new THREE.Mesh(eyeG,MAT.bearEye),{position:new THREE.Vector3(...p)}));
-    g.add(Object.assign(new THREE.Mesh(eyeWG,MAT.bearEyeW),{position:new THREE.Vector3(p[0]+0.03,p[1]+0.05,p[2]+0.04)}));
+    const eye=new THREE.Mesh(eyeG,MAT.bearEye);eye.position.set(p[0],p[1],p[2]);g.add(eye);
+    const ew=new THREE.Mesh(eyeWG,MAT.bearEyeW);ew.position.set(p[0]+0.03,p[1]+0.05,p[2]+0.04);g.add(ew);
   });
   // Smile
-  g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.22,0.05,0.05),MAT.bearEye),{position:new THREE.Vector3(0,0.95,0.8)}));
+  const smile=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.05,0.05),MAT.bearEye);smile.position.set(0,0.95,0.8);g.add(smile);
   // Blush
   [[-0.35,1.02,0.78],[0.35,1.02,0.78]].forEach(p=>{
-    g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.13,0.07,0.04),MAT.blush),{position:new THREE.Vector3(...p)}));
+    const bl=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.07,0.04),MAT.blush);bl.position.set(p[0],p[1],p[2]);g.add(bl);
   });
   // Label
-  g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.55,0.3,0.04),new THREE.MeshLambertMaterial({color:0xfff8dc})),{position:new THREE.Vector3(0,0.9,0.97)}));
+  const label=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.3,0.04),new THREE.MeshLambertMaterial({color:0xfff8dc}));label.position.set(0,0.9,0.97);g.add(label);
   g.position.set(0,surfaceY(0,0)+0.05,0);
   g.scale.set(1.15,1.15,1.15);
   honeyMesh=g;scene.add(g);
