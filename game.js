@@ -9,8 +9,8 @@ const CFG={
   donutInterval:4500,donutPoints:100,beePoints:10,
   tapRepelPoints:25,beePenalty:50,tapRepelRadius:2.8,
 };
-const BS=0.4; // block size — fine voxels
-const IR=12;  // island radius in blocks
+const BS=0.5; // block size — fine voxels
+const IR=9;   // island radius in blocks
 
 // SFX
 const SFX=(()=>{let ac=null,m=null;
@@ -44,7 +44,7 @@ const clp=(v,l,h)=>v<l?l:v>h?h:v;
 // === HEIGHTMAP ===
 function heightAt(bx,bz){
   const wx=bx*BS,wz=bz*BS,d=Math.sqrt(wx*wx+wz*wz);
-  const base=3.2-d*0.5;
+  const base=3.5-d*0.55;
   const n=Math.sin(wx*1.2+wz*0.5)*0.22+Math.cos(wx*0.5+wz*1.4)*0.18+Math.sin(wx*2.1-wz*0.8)*0.1;
   return Math.floor((base+n)/BS);
 }
@@ -99,8 +99,8 @@ function createIsland(){
       const h=heightAt(bx,bz);
       if(h<-6)continue;
       const wx=bx*BS,wz=bz*BS,d=Math.sqrt(wx*wx+wz*wz);
-      const depth=Math.max(3,Math.floor((7-d*0.7)/BS));
-      const minY=Math.max(-12,h-depth);
+      const depth=Math.max(2,Math.min(5,Math.floor((5-d*0.5)/BS)));
+      const minY=h-depth;
       for(let by=minY;by<=h;by++){
         let mat;
         if(by===h&&h>=5) mat=Math.random()>0.3?MAT.grassTop:MAT.grassLight;
