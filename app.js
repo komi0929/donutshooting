@@ -17,8 +17,6 @@
   function showTitle() {
     document.body.classList.remove('game-active');
     if (titleScreen) titleScreen.classList.add('visible');
-    const hs = parseInt(localStorage.getItem('honey_highscore') || '0');
-    if (titleHigh) titleHigh.textContent = hs;
   }
 
   function hideTitle() {
