@@ -42,11 +42,7 @@ body.game-active #game-hud{display:block}
 .hud-honey-fill{height:100%;width:100%;background:var(--honey-gold);border-radius:3px;transition:width .3s ease}
 /* Bottom controls */
 .hud-bottom{position:absolute;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;pointer-events:auto}
-.hud-gauge{width:100px;height:10px;background:rgba(0,0,0,.4);border-radius:5px;overflow:hidden;border:1.5px solid rgba(255,255,255,.2)}
-.hud-gauge-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--honey-amber),var(--honey-gold));border-radius:5px;transition:width .3s ease;box-shadow:0 0 6px rgba(255,215,0,.5)}
-.hud-blast-btn{font-family:'Outfit',sans-serif;font-size:.7rem;font-weight:700;padding:8px 16px;border:2px solid rgba(255,215,0,.3);border-radius:25px;background:rgba(0,0,0,.35);color:rgba(255,215,0,.5);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:all .3s ease;min-height:40px;backdrop-filter:blur(4px);pointer-events:auto}
-.hud-blast-btn.ready{border-color:var(--honey-gold);color:var(--honey-gold);background:rgba(255,215,0,.2);box-shadow:0 0 20px rgba(255,215,0,.4);animation:blastPulse .8s ease-in-out infinite}
-@keyframes blastPulse{0%,100%{box-shadow:0 0 15px rgba(255,215,0,.3);transform:scale(1)}50%{box-shadow:0 0 30px rgba(255,215,0,.6);transform:scale(1.05)}}
+.hud-donuts{font-family:'Outfit',sans-serif;font-size:.85rem;font-weight:700;color:var(--honey-gold);text-shadow:0 0 8px rgba(255,215,0,.4),0 2px 3px rgba(0,0,0,.4);pointer-events:none}
 
 body.game-active{background:var(--sky-blue)!important}
 

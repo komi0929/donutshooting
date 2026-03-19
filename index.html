@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=7" />
+    <link rel="stylesheet" href="style.css?v=8" />
   </head>
   <body>
     <div id="game-container"></div>
@@ -60,10 +60,7 @@
         <div class="hud-honey-bar"><div class="hud-honey-fill" id="hud-honey"></div></div>
       </div>
       <div class="hud-bottom">
-        <div class="hud-gauge">
-          <div class="hud-gauge-fill" id="hud-gauge-fill"></div>
-        </div>
-        <button id="hud-blast-btn" class="hud-blast-btn">🍩 0/3</button>
+        <span class="hud-donuts" id="hud-donuts">🍩 ×0</span>
       </div>
     </div>
 
@@ -131,9 +128,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="game.js?v=7"></script>
-    <script src="leaderboard.js?v=7"></script>
-    <script src="app.js?v=7"></script>
+    <script src="game.js?v=8"></script>
+    <script src="leaderboard.js?v=8"></script>
+    <script src="app.js?v=8"></script>
     <script>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(r => r.forEach(x => x.unregister()));
