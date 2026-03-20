@@ -679,7 +679,12 @@ function updateBees(dt,now){
 }
 
 function spawnDonut(){
-  const a=rand(0,Math.PI*2),d=rand(1.5,3.5);const mesh=createDonutModel();
+  // Spawn on opposite side of island from bear
+  let bearAngle=0;
+  if(playerGroup)bearAngle=Math.atan2(playerGroup.position.z,playerGroup.position.x);
+  const a=bearAngle+Math.PI+rand(-0.8,0.8); // opposite side ±45°
+  const d=rand(3,5); // far from center but still on island
+  const mesh=createDonutModel();
   const dx=Math.cos(a)*d,dz=Math.sin(a)*d;
   const sy=surfaceY(dx,dz);
   mesh.position.set(dx,sy+2.5,dz);scene.add(mesh);
